@@ -31,3 +31,13 @@ That's it! Pre-commit hooks will now run automatically on every `git commit`.
 > ```bash
 > uv run pre-commit run --all-files
 > ```
+
+## Configuration
+
+To configure the application, create a `.env` file in the root directory of the project and define the required environment variables. For example:
+
+```
+APP_NAME=Career Scout AI
+```
+
+This variable is used to set the name of the application. Ensure that the `.env` file is excluded from version control by keeping it listed in `.gitignore`.
