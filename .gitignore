@@ -1,0 +1,30 @@
+# Environment variables
+.env
+
+# Python cache files
+__pycache__/
+src/career_scout_ai/__pycache__/
+*.py[cod]
+
+# SQLite database files
+*.sqlite3
+
+# Logs
+*.log
+
+# Virtual environments
+venv/
+
+# IDE settings
+.vscode/
+.idea/
+
+# macOS system files
+.DS_Store
+
+# TailwindCSS build artifacts
+node_modules/
+*.css.map
+
+# Playwright browser cache
+.playwright/
