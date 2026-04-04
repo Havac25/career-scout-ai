@@ -24,6 +24,10 @@ MAX_PAGES = 5  # Safety limit for MVP (~250 offers per run)
 REQUEST_DELAY = 1.0  # seconds between API page requests
 DETAIL_DELAY = 0.5  # seconds between offer detail requests
 
+# JustJoinIT category IDs:
+# 5=Other/DS, 12=DevOps/MLOps, 19=Data, 23=Architecture, 25=C-level/AI
+CATEGORIES = [5, 12, 19, 23, 25]
+
 _JSONLD_RE = re.compile(
     r'\{"@context":"https://schema\.org","@type":"JobPosting".*?\}(?=</script>)',
 )
@@ -104,7 +108,9 @@ def _parse_offer(offer: dict) -> dict:
 
 
 def fetch_page(client: httpx.Client, page: int) -> dict:
-    response = client.get(BASE_URL, params={"page": page, "perPage": PER_PAGE})
+    params: list[tuple[str, int]] = [("page", page), ("perPage", PER_PAGE)]
+    params.extend(("categories[]", cat) for cat in CATEGORIES)
+    response = client.get(BASE_URL, params=params)
     response.raise_for_status()
     data: dict = response.json()
     return data
