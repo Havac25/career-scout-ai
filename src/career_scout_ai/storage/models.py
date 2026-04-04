@@ -36,6 +36,8 @@ class JobListing(Base):
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     company: Mapped[str] = mapped_column(String(300), nullable=False)
     location_raw: Mapped[str | None] = mapped_column(String(500))
+    workplace_type: Mapped[str | None] = mapped_column(String(20))
+    contract_types: Mapped[str | None] = mapped_column(String(200))
     salary_raw: Mapped[str | None] = mapped_column(String(500))
     description_raw: Mapped[str | None] = mapped_column(Text)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime)

@@ -83,13 +83,20 @@ def _parse_offer(offer: dict) -> dict:
     title = offer.get("title", "")
     company = offer.get("companyName", "")
 
+    employment_types = offer.get("employmentTypes", [])
+    contract_types = list(
+        dict.fromkeys(et.get("type", "") for et in employment_types if et.get("type"))
+    )
+
     return {
         "portal": PORTAL_NAME,
         "url": OFFER_URL_TEMPLATE.format(slug=slug),
         "title": title,
         "company": company,
         "location_raw": _format_location(offer),
-        "salary_raw": _format_salary(offer.get("employmentTypes", [])),
+        "workplace_type": offer.get("workplaceType"),
+        "contract_types": ", ".join(contract_types) if contract_types else None,
+        "salary_raw": _format_salary(employment_types),
         "description_raw": None,
         "posted_at": _parse_datetime(offer.get("publishedAt")),
         "content_hash": compute_content_hash(title, company, None),
