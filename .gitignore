@@ -8,6 +8,7 @@ src/career_scout_ai/__pycache__/
 
 # SQLite database files
 *.sqlite3
+data/*.db
 
 # Logs
 *.log
