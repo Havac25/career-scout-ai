@@ -1,8 +1,12 @@
-from pydantic import BaseSettings
+from pathlib import Path
+
+from pydantic_settings import BaseSettings
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class AppConfig(BaseSettings):
-    app_name: str
+    app_name: str = "Career Scout AI"
+    database_path: Path = PROJECT_ROOT / "data" / "career_scout.db"
 
-    class Config:
-        env_file = ".env"
+    model_config = {"env_file": ".env"}
