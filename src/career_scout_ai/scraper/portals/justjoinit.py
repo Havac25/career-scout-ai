@@ -1,4 +1,6 @@
+import json
 import logging
+import re
 import time
 from datetime import UTC, datetime
 
@@ -19,7 +21,12 @@ BASE_URL = "https://api.justjoin.it/v2/user-panel/offers"
 OFFER_URL_TEMPLATE = "https://justjoin.it/offers/{slug}"
 PER_PAGE = 50
 MAX_PAGES = 5  # Safety limit for MVP (~250 offers per run)
-REQUEST_DELAY = 1.0  # seconds between API requests
+REQUEST_DELAY = 1.0  # seconds between API page requests
+DETAIL_DELAY = 0.5  # seconds between offer detail requests
+
+_JSONLD_RE = re.compile(
+    r'\{"@context":"https://schema\.org","@type":"JobPosting".*?\}(?=</script>)',
+)
 
 
 def _format_salary(employment_types: list[dict]) -> str | None:
@@ -57,6 +64,20 @@ def _parse_datetime(value: str | None) -> datetime | None:
         return None
 
 
+def _fetch_description(client: httpx.Client, url: str) -> str | None:
+    try:
+        response = client.get(url, follow_redirects=True)
+        response.raise_for_status()
+        match = _JSONLD_RE.search(response.text)
+        if match:
+            data = json.loads(match.group(0))
+            description: str | None = data.get("description")
+            return description
+    except Exception:
+        logger.debug("Failed to fetch description for %s", url)
+    return None
+
+
 def _parse_offer(offer: dict) -> dict:
     slug = offer.get("slug", "")
     title = offer.get("title", "")
@@ -91,10 +112,16 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
     listings_new = 0
 
     try:
-        with httpx.Client(
-            headers={"User-Agent": "CareerScoutAI/0.1", "Version": "2"},
-            timeout=30.0,
-        ) as client:
+        with (
+            httpx.Client(
+                headers={"User-Agent": "CareerScoutAI/0.1"},
+                timeout=30.0,
+            ) as web_client,
+            httpx.Client(
+                headers={"User-Agent": "CareerScoutAI/0.1", "Version": "2"},
+                timeout=30.0,
+            ) as client,
+        ):
             for page in range(1, max_pages + 1):
                 logger.info("Fetching page %d/%d", page, max_pages)
                 data = fetch_page(client, page)
@@ -117,6 +144,16 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
                         continue
                     if result == DedupResult.SKIP_HASH:
                         parsed["is_duplicate"] = True
+
+                    description = _fetch_description(web_client, parsed["url"])
+                    if description:
+                        parsed["description_raw"] = description
+                        parsed["content_hash"] = compute_content_hash(
+                            parsed["title"],
+                            parsed["company"],
+                            description,
+                        )
+                    time.sleep(DETAIL_DELAY)
 
                     listing = JobListing(**parsed)
                     session.add(listing)
