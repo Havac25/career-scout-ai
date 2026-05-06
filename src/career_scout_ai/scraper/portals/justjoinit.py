@@ -107,13 +107,82 @@ def _parse_offer(offer: dict) -> dict:
     }
 
 
-def fetch_page(client: httpx.Client, page: int) -> dict:
+def _fetch_page(client: httpx.Client, page: int) -> dict:
     params: list[tuple[str, int]] = [("page", page), ("perPage", PER_PAGE)]
     params.extend(("categories[]", cat) for cat in CATEGORIES)
     response = client.get(BASE_URL, params=params)
     response.raise_for_status()
     data: dict = response.json()
     return data
+
+
+def _process_offer(
+    web_client: httpx.Client,
+    session: Session,
+    offer: dict,
+) -> bool:
+    """Dedup, fetch description, and save a single offer. Returns True if new."""
+    parsed = _parse_offer(offer)
+
+    result = check_duplicate(
+        session,
+        parsed["url"],
+        parsed["content_hash"],
+    )
+    if result == DedupResult.SKIP_URL:
+        return False
+    if result == DedupResult.SKIP_HASH:
+        parsed["is_duplicate"] = True
+
+    description = _fetch_description(web_client, parsed["url"])
+    if description:
+        parsed["description_raw"] = description
+        parsed["content_hash"] = compute_content_hash(
+            parsed["title"],
+            parsed["company"],
+            description,
+        )
+    time.sleep(DETAIL_DELAY)
+
+    session.add(JobListing(**parsed))
+    return True
+
+
+def _scrape_pages(
+    client: httpx.Client,
+    web_client: httpx.Client,
+    session: Session,
+    max_pages: int,
+) -> tuple[int, int]:
+    """Iterate API pages, process offers."""
+    listings_found = 0
+    listings_new = 0
+
+    for page in range(1, max_pages + 1):
+        logger.info("Fetching page %d/%d", page, max_pages)
+        data = _fetch_page(client, page)
+
+        offers = data.get("data", [])
+        if not offers:
+            logger.info("No more offers on page %d, stopping", page)
+            break
+
+        for offer in offers:
+            listings_found += 1
+            if _process_offer(web_client, session, offer):
+                listings_new += 1
+
+        session.commit()
+
+        meta = data.get("meta", {})
+        if meta.get("nextPage") is None:
+            logger.info("Reached last page")
+            break
+
+        if page < max_pages:
+            time.sleep(REQUEST_DELAY)
+
+    return listings_found, listings_new
 
 
 def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
@@ -127,60 +196,22 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
     try:
         with (
             httpx.Client(
-                headers={"User-Agent": "CareerScoutAI/0.1"},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+                },
                 timeout=30.0,
             ) as web_client,
             httpx.Client(
-                headers={"User-Agent": "CareerScoutAI/0.1", "Version": "2"},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                    "Version": "2",
+                },
                 timeout=30.0,
             ) as client,
         ):
-            for page in range(1, max_pages + 1):
-                logger.info("Fetching page %d/%d", page, max_pages)
-                data = fetch_page(client, page)
-
-                offers = data.get("data", [])
-                if not offers:
-                    logger.info("No more offers on page %d, stopping", page)
-                    break
-
-                for offer in offers:
-                    listings_found += 1
-                    parsed = _parse_offer(offer)
-
-                    result = check_duplicate(
-                        session,
-                        parsed["url"],
-                        parsed["content_hash"],
-                    )
-                    if result == DedupResult.SKIP_URL:
-                        continue
-                    if result == DedupResult.SKIP_HASH:
-                        parsed["is_duplicate"] = True
-
-                    description = _fetch_description(web_client, parsed["url"])
-                    if description:
-                        parsed["description_raw"] = description
-                        parsed["content_hash"] = compute_content_hash(
-                            parsed["title"],
-                            parsed["company"],
-                            description,
-                        )
-                    time.sleep(DETAIL_DELAY)
-
-                    listing = JobListing(**parsed)
-                    session.add(listing)
-                    listings_new += 1
-
-                session.commit()
-
-                meta = data.get("meta", {})
-                if meta.get("nextPage") is None:
-                    logger.info("Reached last page")
-                    break
-
-                if page < max_pages:
-                    time.sleep(REQUEST_DELAY)
+            listings_found, listings_new = _scrape_pages(
+                client, web_client, session, max_pages
+            )
 
         run.status = ScrapingStatus.SUCCESS
 
