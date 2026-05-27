@@ -41,3 +41,20 @@ APP_NAME=Career Scout AI
 ```
 
 This variable is used to set the name of the application. Ensure that the `.env` file is excluded from version control by keeping it listed in `.gitignore`.
+
+## Usage
+
+Run the scrapers (sequential: JustJoinIT → NoFluffJobs):
+
+```bash
+uv run career-scout-ai
+```
+
+Results are stored in `data/career_scout.db` (SQLite). Logs go to `data/scraper.log`.
+
+## Documentation
+
+See `docs/` for detailed project documentation:
+
+- [`docs/project-plan.md`](docs/project-plan.md) — vision, architecture, implementation plan, status, and ADRs
+- [`docs/legal.md`](docs/legal.md) — scraping risk analysis per portal
