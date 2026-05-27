@@ -19,9 +19,13 @@ venv/
 # IDE settings
 .vscode/
 .idea/
+.github/
 
 # macOS system files
 .DS_Store
+
+# Archived docs
+docs/archive/
 
 # TailwindCSS build artifacts
 node_modules/
