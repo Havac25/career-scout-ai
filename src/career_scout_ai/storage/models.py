@@ -4,13 +4,16 @@ from enum import StrEnum
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
+    ForeignKey,
     Index,
     Integer,
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 
@@ -52,6 +55,10 @@ class JobListing(Base):
     # Embedding (optional, for future dedup layer 4)
     embedding: Mapped[bytes | None] = mapped_column(LargeBinary)
 
+    agent_scores: Mapped[list["AgentScore"]] = relationship(
+        back_populates="job_listing", lazy="select"
+    )
+
     __table_args__ = (
         Index("ix_portal_scraped", "portal", "scraped_at"),
         Index("ix_content_hash", "content_hash"),
@@ -74,3 +81,28 @@ class ScrapingRun(Base):
         String(20), default=ScrapingStatus.RUNNING, nullable=False
     )
     error_message: Mapped[str | None] = mapped_column(Text)
+
+
+class AgentScore(Base):
+    __tablename__ = "agent_scores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_listing_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("job_listings.id"), nullable=False
+    )
+    agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    scored_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    job_listing: Mapped["JobListing"] = relationship(
+        back_populates="agent_scores", lazy="select"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("job_listing_id", "agent_name", name="uq_listing_agent"),
+        Index("ix_agent_name_score", "agent_name", "score"),
+    )

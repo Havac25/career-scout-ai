@@ -1,6 +1,7 @@
 import logging
 
 from career_scout_ai.config import AppConfig
+from career_scout_ai.scoring.engine import ScoringEngine
 from career_scout_ai.scraper.portals import justjoinit, nofluffjobs
 from career_scout_ai.storage.database import get_session_factory, init_db
 
@@ -33,6 +34,21 @@ def main() -> None:
                 run.listings_new,
                 run.status,
             )
+
+    try:
+        scoring_engine = ScoringEngine(config)
+        with session_factory() as session:
+            results = scoring_engine.score_new_offers(session)
+            for result in results:
+                logger.info(
+                    "[scoring:%s] scored=%d skipped=%d total=%d",
+                    result.agent_name,
+                    result.scored,
+                    result.skipped,
+                    result.total_to_score,
+                )
+    except Exception:
+        logger.exception("Scoring failed — scraping data is safe")
 
 
 if __name__ == "__main__":
