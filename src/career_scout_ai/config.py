@@ -9,4 +9,13 @@ class AppConfig(BaseSettings):
     app_name: str = "Career Scout AI"
     database_path: Path = PROJECT_ROOT / "data" / "career_scout.db"
 
+    # Ollama (local LLM)
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen3:8b"
+    ollama_timeout: int = 120
+
+    # Scoring
+    agents_dir: Path = PROJECT_ROOT / "config" / "agents"
+    profile_path: Path = PROJECT_ROOT / "config" / "profile.md"
+
     model_config = {"env_file": ".env"}
