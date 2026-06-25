@@ -86,17 +86,7 @@ else
 fi
 
 echo ""
-echo "9. Configuring Laptop Lid Switch behavior..."
-sudo mkdir -p /etc/systemd/logind.conf.d
-cat <<EOF | sudo tee /etc/systemd/logind.conf.d/career-scout.conf > /dev/null
-[Login]
-HandleLidSwitchExternalPower=ignore
-EOF
-sudo systemctl restart systemd-logind
-echo "System will now ignore lid closes when on AC power."
-
-echo ""
-echo "10. Installing Systemd Scheduling (Daily at 02:00 Warsaw time)..."
+echo "9. Installing Systemd Scheduling (Daily at 02:00 Warsaw time)..."
 if [ ! -f "deploy/career-scout-ai.service" ] || [ ! -f "deploy/career-scout-ai.timer" ]; then
     echo "Error: deploy/ unit files not found. Cannot install timer."
     exit 1

@@ -19,7 +19,17 @@ To make setup as easy as possible, an automated setup script is included in the 
    chmod +x setup-local-linux.sh
    ./setup-local-linux.sh
    ```
-   *(Note: The script will prompt for your `sudo` password to install system packages, modify the lid switch configuration, and start the Ollama service).*
+   *(Note: The script will prompt for your `sudo` password to install system packages and start the Ollama service).*
+
+3. **Configure lid switch behavior (one-time manual step):**
+   Restarting `systemd-logind` terminates the active session, so this step must be run manually after the setup script completes. It prevents the laptop from suspending when the lid is closed on AC power:
+   ```bash
+   sudo mkdir -p /etc/systemd/logind.conf.d
+   echo "[Login]
+   HandleLidSwitchExternalPower=ignore" | sudo tee /etc/systemd/logind.conf.d/career-scout.conf
+   sudo systemctl restart systemd-logind
+   ```
+   *(Note: Your SSH or terminal session will be terminated by the last command. This is expected — reconnect and the setting will be active.)*
 
 ## 2. Managing Background Scheduling
 
