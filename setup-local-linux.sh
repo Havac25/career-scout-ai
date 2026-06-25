@@ -96,7 +96,7 @@ sudo systemctl restart systemd-logind
 echo "System will now ignore lid closes when on AC power."
 
 echo ""
-echo "10. Installing Systemd Scheduling (Daily between 20:00 and 02:00 Warsaw time)..."
+echo "10. Installing Systemd Scheduling (Daily at 02:00 Warsaw time)..."
 if [ ! -f "deploy/career-scout-ai.service" ] || [ ! -f "deploy/career-scout-ai.timer" ]; then
     echo "Error: deploy/ unit files not found. Cannot install timer."
     exit 1
@@ -117,7 +117,7 @@ echo ""
 echo "======================================================"
 echo "Setup Complete!"
 echo "======================================================"
-echo "The application will run automatically every day between 20:00 and 02:00 (Warsaw time)."
+echo "The application will run automatically every day at 02:00 (Warsaw time)."
 echo ""
 echo "Next scheduled run:"
 systemctl --user list-timers career-scout-ai.timer --no-pager 2>/dev/null || true

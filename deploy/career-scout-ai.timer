@@ -1,9 +1,8 @@
 [Unit]
-Description=Career Scout AI Daily Run between 20:00 and 02:00 Warsaw Time
+Description=Career Scout AI Daily Run at 02:00 Warsaw Time
 
 [Timer]
-OnCalendar=*-*-* 20:00:00 Europe/Warsaw
-RandomizedDelaySec=21600
+OnCalendar=*-*-* 02:00:00 Europe/Warsaw
 Persistent=true
 Unit=career-scout-ai.service
 

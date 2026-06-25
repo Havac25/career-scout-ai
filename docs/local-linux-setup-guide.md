@@ -23,7 +23,7 @@ To make setup as easy as possible, an automated setup script is included in the 
 
 ## 2. Managing Background Scheduling
 
-The setup script automatically configures the application to run daily at 20:00 (Warsaw time) in the background using `systemd` timers. The job will also run correctly if your laptop is closed, provided it is plugged into AC power. If the job was missed due to the laptop being off or sleeping on battery, `Persistent=true` ensures it will catch up immediately upon next wake.
+The setup script automatically configures the application to run daily at 02:00 (Warsaw time) in the background using `systemd` timers. The job will also run correctly if your laptop is closed, provided it is plugged into AC power. If the job was missed due to the laptop being off or sleeping on battery, `Persistent=true` ensures it will catch up immediately upon next wake.
 
 Here are the commands to manage and monitor the background job:
 

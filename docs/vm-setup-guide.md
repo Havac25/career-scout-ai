@@ -36,7 +36,7 @@ To make the installation seamless, an automated script is provided for Ubuntu en
 
 ## 4. Managing Background Scheduling
 
-The setup script automatically configures the application to run daily at 20:00 (Warsaw time) in the background using `systemd` timers. `Persistent=true` ensures it catches up if the VM is temporarily offline at execution time.
+The setup script automatically configures the application to run daily at 02:00 (Warsaw time) in the background using `systemd` timers. `Persistent=true` ensures it catches up if the VM is temporarily offline at execution time.
 
 Here are the commands to manage and monitor the background job:
 
