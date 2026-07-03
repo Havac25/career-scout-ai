@@ -33,3 +33,5 @@ node_modules/
 
 # Playwright browser cache
 .playwright/
+
+.ssh

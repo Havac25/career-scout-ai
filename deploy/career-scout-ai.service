@@ -1,0 +1,14 @@
+[Unit]
+Description=Career Scout AI - Daily Job Scraper and Scorer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=__PROJECT_DIR__/.venv/bin/career-scout-ai
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
