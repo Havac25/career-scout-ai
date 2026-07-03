@@ -2,12 +2,8 @@
 
 This document contains the technical specification and setup instructions for the Virtual Machine intended to host the Career Scout AI pipeline and the local LLM (Ollama).
 
-## 1. Hardware Specification (Target: Oracle Cloud Free Tier)
+## 1. Operating System
 
-*   **Instance Type:** OCI Ampere A1 Compute (ARM-based)
-*   **OCPUs:** 4
-*   **RAM:** 24 GB (Critical: Qwen3-8B requires ~6-8GB, leaving enough for system cache and future web UI)
-*   **Boot Volume:** 50 GB+ (Standard)
 *   **OS:** Ubuntu 22.04 LTS or 24.04 LTS
 
 ## 2. Infrastructure Configuration
