@@ -19,7 +19,7 @@ SEARCH_URL = "https://nofluffjobs.com/api/search/posting"
 DETAIL_URL = "https://nofluffjobs.com/api/posting/{slug}"
 OFFER_URL_TEMPLATE = "https://nofluffjobs.com/job/{slug}"
 SEARCH_LIMIT = 500  # unique offers per request (NFJ pageNumber is non-functional)
-DETAIL_DELAY = 300.0  # seconds between detail requests (~12 req/h)
+DETAIL_DELAY = 30.0  # seconds between detail requests (~120 req/h)
 
 # NFJ category slugs for data/AI scope:
 # data (~2400), artificialIntelligence (~1300), businessIntelligence (~2700)
