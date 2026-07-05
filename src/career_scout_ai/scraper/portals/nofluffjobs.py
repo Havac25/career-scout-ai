@@ -100,6 +100,8 @@ def _format_salary(original_salary: dict | None) -> str | None:
     types = original_salary.get("types", {})
     parts = []
     for contract, details in types.items():
+        if not isinstance(details, dict):
+            continue
         salary_range = details.get("range", [])
         if len(salary_range) < 2:
             continue
@@ -226,8 +228,11 @@ def _scrape_listings(
     listings_new = 0
     for listing in unique:
         listings_found += 1
-        if _process_offer(client, session, listing):
-            listings_new += 1
+        try:
+            if _process_offer(client, session, listing):
+                listings_new += 1
+        except Exception:
+            logger.exception("Failed to process offer: %s", listing.get("url"))
 
     session.commit()
     return listings_found, listings_new
