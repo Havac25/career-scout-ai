@@ -13,10 +13,12 @@ dependencies = [
     "pydantic-settings>=2.0",
     "httpx",
     "alembic",
+    "fastapi[standard]>=0.115",
 ]
 
 [project.scripts]
 career-scout-ai = "career_scout_ai.main:main"
+career-scout-web = "career_scout_ai.web.app:serve"
 
 [dependency-groups]
 dev = [
