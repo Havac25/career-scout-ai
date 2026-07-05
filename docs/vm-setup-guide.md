@@ -30,7 +30,34 @@ To make the installation seamless, an automated script is provided for Ubuntu en
    ./setup-vm.sh
    ```
 
-## 4. Managing Background Scheduling
+3. **Reload your shell:**
+   The setup script persists `uv` to your `PATH` via `~/.bashrc`. You must reload the shell (or open a new session) before running any `uv` commands manually:
+   ```bash
+   source ~/.bashrc
+   ```
+
+## 4. Troubleshooting
+
+### `uv: command not found` after setup
+
+`uv` is installed to `~/.local/bin`, which is not in the default `PATH` of a new shell session. The setup script adds it to `~/.bashrc` automatically, but you need to reload your shell for it to take effect:
+
+```bash
+source ~/.bashrc
+```
+
+If the problem persists, verify the entry was written:
+```bash
+grep '.local/bin' ~/.bashrc
+```
+
+If missing, add it manually:
+```bash
+echo 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+## 5. Managing Background Scheduling
 
 The setup script automatically configures the application to run daily at 02:00 (Warsaw time) in the background using `systemd` timers. `Persistent=true` ensures it catches up if the VM is temporarily offline at execution time.
 
