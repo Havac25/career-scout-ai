@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from career_scout_ai.scraper.portals.nofluffjobs import (
     _deduplicate_listings,
     _format_location,
@@ -5,6 +7,7 @@ from career_scout_ai.scraper.portals.nofluffjobs import (
     _get_contract_types,
     _get_workplace_type,
     _parse_offer,
+    _scrape_listings,
 )
 
 
@@ -60,6 +63,16 @@ class TestFormatSalary:
             },
         }
         assert _format_salary(salary) is None
+
+    def test_boolean_details_skipped(self):
+        salary = {
+            "currency": "PLN",
+            "types": {
+                "b2b": True,
+                "permanent": {"range": [14000, 20000], "period": "Month"},
+            },
+        }
+        assert _format_salary(salary) == "14000-20000 PLN/month (permanent)"
 
 
 class TestFormatLocation:
@@ -286,3 +299,32 @@ class TestParseOffer:
         assert parsed["description_raw"] is None
         assert parsed["location_raw"] is None
         assert parsed["posted_at"] is None
+
+
+SAMPLE_LISTINGS = [
+    {"url": "offer-1", "title": "Offer 1", "name": "Corp"},
+    {"url": "offer-2", "title": "Offer 2", "name": "Corp"},
+    {"url": "offer-3", "title": "Offer 3", "name": "Corp"},
+]
+
+
+class TestScrapeListingsResilience:
+    def test_bad_offer_does_not_stop_remaining_offers(self):
+        client = MagicMock()
+        session = MagicMock()
+
+        with (
+            patch(
+                "career_scout_ai.scraper.portals.nofluffjobs._fetch_listings",
+                return_value=SAMPLE_LISTINGS,
+            ),
+            patch(
+                "career_scout_ai.scraper.portals.nofluffjobs._process_offer",
+                side_effect=[True, RuntimeError("bad offer"), True],
+            ),
+        ):
+            listings_found, listings_new = _scrape_listings(client, session, limit=500)
+
+        assert listings_found == 3
+        assert listings_new == 2
+        session.commit.assert_called_once()

@@ -35,3 +35,7 @@ node_modules/
 .playwright/
 
 .ssh
+
+# Sandbox and personal configs
+sandbox/
+config/profile.md
