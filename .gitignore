@@ -35,5 +35,7 @@ node_modules/
 .playwright/
 
 .ssh
+
 sandbox/
 config/profile.md
+
