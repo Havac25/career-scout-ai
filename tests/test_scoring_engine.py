@@ -86,7 +86,7 @@ def config(tmp_path) -> AppConfig:
         agents_dir=agents_dir,
         profile_path=profile_path,
         ollama_base_url="http://localhost:11434",
-        ollama_model="qwen3:8b",
+        ollama_model="qwen2.5:3b",
     )
 
 
@@ -114,7 +114,7 @@ class TestGetUnscoredOffers:
             score=0.9,
             summary="Great fit",
             scored_at=datetime.now(),
-            model_name="qwen3:8b",
+            model_name="qwen2.5:3b",
         )
         db_session.add(score)
         db_session.commit()
@@ -137,7 +137,7 @@ class TestGetUnscoredOffers:
             score=0.9,
             summary="Great fit",
             scored_at=datetime.now(),
-            model_name="qwen3:8b",
+            model_name="qwen2.5:3b",
         )
         db_session.add(score)
         db_session.commit()
