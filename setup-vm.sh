@@ -36,6 +36,17 @@ else
     echo "uv is already installed."
 fi
 
+# Persist uv/cargo PATH to ~/.bashrc so it is available in future shell sessions
+PATH_LINE='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
+if ! grep -qF '.local/bin' ~/.bashrc; then
+    echo "" >> ~/.bashrc
+    echo "# Added by career-scout-ai setup script" >> ~/.bashrc
+    echo "$PATH_LINE" >> ~/.bashrc
+    echo "PATH persisted to ~/.bashrc"
+else
+    echo "PATH entry already present in ~/.bashrc, skipping."
+fi
+
 echo ""
 echo "3. Checking Ollama..."
 if ! command -v ollama &> /dev/null; then
@@ -54,9 +65,9 @@ else
 fi
 
 echo ""
-echo "5. Downloading AI Model (qwen3:8b)..."
-echo "(This is a ~4.7GB download and might take a while if not cached)"
-ollama pull qwen3:8b
+echo "5. Downloading AI Model (qwen2.5:3b)..."
+echo "(This is a ~2.0GB download and might take a while if not cached)"
+ollama pull qwen2.5:3b
 
 echo ""
 echo "6. Setting up Python virtual environment..."
@@ -78,7 +89,7 @@ if [ ! -f ".env" ]; then
     cat <<EOF > .env
 APP_NAME=Career Scout AI
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen3:8b
+OLLAMA_MODEL=qwen2.5:3b
 EOF
     echo ".env file created."
 else

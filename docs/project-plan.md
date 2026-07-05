@@ -45,7 +45,7 @@ A Python application that scrapes IT job listings from PL+FR portals in the back
 | Database | SQLite + SQLAlchemy 2.0 | Zero config; PostgreSQL migration possible |
 | Migrations | Alembic | — |
 | Config | `pydantic-settings` + `.env` | — |
-| Local LLM | Ollama (`qwen3:8b`) | Scoring, summaries — zero cost |
+| Local LLM | Ollama (`qwen2.5:3b`) | Scoring, summaries — zero cost |
 | Cloud LLM (optional) | GPT-4o-mini | Future option for trend reports |
 | Scheduler | APScheduler | Scraping and report schedules |
 | Web UI | FastAPI + Jinja2 + HTMX + TailwindCSS | — |
