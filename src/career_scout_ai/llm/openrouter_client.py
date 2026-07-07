@@ -17,7 +17,7 @@ class OpenRouterClient:
     def __init__(
         self,
         api_key: str,
-        model: str = "google/gemini-2.5-flash-preview-05-20",
+        model: str = "google/gemini-2.5-flash",
         timeout: int = 60,
         max_retries: int = 3,
     ) -> None:

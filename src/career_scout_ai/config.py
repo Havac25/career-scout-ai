@@ -16,7 +16,7 @@ class AppConfig(BaseSettings):
 
     # OpenRouter (cloud LLM)
     openrouter_api_key: str = ""
-    openrouter_model: str = "google/gemini-2.5-flash-preview-05-20"
+    openrouter_model: str = "google/gemini-2.5-flash"
     openrouter_timeout: int = 60
 
     # Scoring
