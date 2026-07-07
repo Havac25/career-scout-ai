@@ -95,6 +95,68 @@ graph LR
     WEB --> UI
 ```
 
+### Scraper Workflows
+
+#### JustJoinIT Scraper
+
+The JustJoinIT scraper iterates through paginated API results, performs preliminary deduplication checks, fetches description details from the web (via JSON-LD), and implements specific rate limiting delays.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SC as JJI Scraper
+    participant API as JustJoinIT API
+    participant WEB as JustJoinIT Web
+    participant DB as SQLite
+
+    loop For each page (up to max_pages)
+        SC->>API: GET /v2/user-panel/offers
+        API-->>SC: List of Offers
+        loop For each Offer
+            SC->>DB: Check Duplicate (URL or Title+Company)
+            alt is duplicate URL
+                SC->>SC: Skip Offer
+            else is new URL
+                SC->>WEB: GET /offers/{slug} (fetch JSON-LD)
+                WEB-->>SC: Description
+                SC->>SC: Sleep 0.5s (DETAIL_DELAY)
+                SC->>DB: Re-check Duplicate (Full Content Hash)
+                SC->>DB: Insert JobListing
+            end
+        end
+        SC->>SC: Sleep 1.0s (REQUEST_DELAY) between pages
+    end
+```
+
+#### NoFluffJobs Scraper
+
+The NoFluffJobs scraper fetches a large batch in one request, groups multi-location duplicates in memory to save API calls, and then conservatively fetches job details with a massive 300-second delay per job to respect rate limits.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SC as NFJ Scraper
+    participant API as NoFluffJobs API
+    participant DB as SQLite
+
+    SC->>API: POST /api/search/posting (limit 500)
+    API-->>SC: List of Postings
+    SC->>SC: In-memory Dedup (merge locations by Title+Company)
+    
+    loop For each Unique Posting
+        SC->>DB: Check Duplicate (URL or Title+Company)
+        alt is duplicate URL
+            SC->>SC: Skip Posting
+        else is new URL
+            SC->>API: GET /api/posting/{slug} (fetch details)
+            API-->>SC: Details (Original Salary, Description)
+            SC->>SC: Sleep 300s (DETAIL_DELAY)
+            SC->>DB: Re-check Duplicate (Full Content Hash)
+            SC->>DB: Insert JobListing
+        end
+    end
+```
+
 ### Scoring Workflow
 
 The scoring phase evaluates freshly scraped offers against the user's career profile using persona-based agents.
