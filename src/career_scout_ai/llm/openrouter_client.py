@@ -63,7 +63,6 @@ class OpenRouterClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "response_format": {"type": "json_object"},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -78,6 +77,12 @@ class OpenRouterClient:
                 json=payload,
                 headers=headers,
             )
+            if not response.is_success:
+                logger.error(
+                    "OpenRouter error %d: %s",
+                    response.status_code,
+                    response.text[:500],
+                )
             response.raise_for_status()
 
         data = response.json()
