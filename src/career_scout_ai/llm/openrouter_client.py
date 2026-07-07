@@ -68,6 +68,8 @@ class OpenRouterClient:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
+            "HTTP-Referer": "https://career-scout-ai.local",
+            "X-Title": "Career Scout AI",
         }
 
         with httpx.Client(timeout=self.timeout) as client:
