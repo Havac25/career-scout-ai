@@ -9,10 +9,15 @@ class AppConfig(BaseSettings):
     app_name: str = "Career Scout AI"
     database_path: Path = PROJECT_ROOT / "data" / "career_scout.db"
 
-    # Ollama (local LLM)
+    # Ollama (local LLM — archived, kept for future use)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"
     ollama_timeout: int = 120
+
+    # OpenRouter (cloud LLM)
+    openrouter_api_key: str = ""
+    openrouter_model: str = "google/gemini-2.5-flash"
+    openrouter_timeout: int = 60
 
     # Scoring
     agents_dir: Path = PROJECT_ROOT / "config" / "agents"

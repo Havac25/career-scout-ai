@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from career_scout_ai.config import AppConfig
-from career_scout_ai.llm.ollama_client import OllamaClient
+from career_scout_ai.llm.openrouter_client import OpenRouterClient
 from career_scout_ai.scoring.prompts import build_system_prompt, build_user_prompt
 from career_scout_ai.storage.models import AgentScore, JobListing
 
@@ -32,10 +32,10 @@ class ScoringEngine:
 
     def __init__(self, config: AppConfig) -> None:
         self.config = config
-        self.client = OllamaClient(
-            base_url=config.ollama_base_url,
-            model=config.ollama_model,
-            timeout=config.ollama_timeout,
+        self.client = OpenRouterClient(
+            api_key=config.openrouter_api_key,
+            model=config.openrouter_model,
+            timeout=config.openrouter_timeout,
         )
         self.profile_content = self._load_profile()
         self.agents = self._discover_agents()
@@ -70,8 +70,7 @@ class ScoringEngine:
         """Score all unscored non-duplicate offers for each agent."""
         if not self.client.is_available():
             logger.error(
-                "Ollama not available at %s — skipping scoring",
-                self.config.ollama_base_url,
+                "OpenRouter not available — check OPENROUTER_API_KEY in .env",
             )
             return []
 
@@ -95,7 +94,7 @@ class ScoringEngine:
             "[%s] Scoring %d new offers with model %s",
             agent.name,
             total,
-            self.config.ollama_model,
+            self.config.openrouter_model,
         )
 
         system_prompt = build_system_prompt(agent.content)
@@ -122,7 +121,7 @@ class ScoringEngine:
                 score=result.score,
                 summary=result.summary,
                 scored_at=datetime.now(),
-                model_name=self.config.ollama_model,
+                model_name=self.config.openrouter_model,
             )
             session.add(agent_score)
             session.commit()
