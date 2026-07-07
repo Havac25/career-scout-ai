@@ -5,12 +5,13 @@ from pathlib import Path
 
 import pandas as pd
 
-DB_PATH = Path(__file__).resolve().parents[1] / "data" / "career_scout_dev.db"
+DB_PATH = Path(__file__).resolve().parents[1] / "data" / "career_scout.db"
 
 conn = sqlite3.connect(DB_PATH)
 
 listings = pd.read_sql("SELECT * FROM job_listings", conn)
 runs = pd.read_sql("SELECT * FROM scraping_runs", conn)
+scoring = pd.read_sql("SELECT * FROM agent_scores", conn)
 
 conn.close()
 

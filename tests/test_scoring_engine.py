@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from career_scout_ai.config import AppConfig
-from career_scout_ai.llm.ollama_client import ScoringResult
+from career_scout_ai.llm import ScoringResult
 from career_scout_ai.scoring.engine import ScoringEngine
 from career_scout_ai.storage.models import AgentScore, Base, JobListing
 
@@ -85,8 +85,8 @@ def config(tmp_path) -> AppConfig:
     return AppConfig(
         agents_dir=agents_dir,
         profile_path=profile_path,
-        ollama_base_url="http://localhost:11434",
-        ollama_model="qwen2.5:3b",
+        openrouter_api_key="test-key",
+        openrouter_model="google/gemini-2.5-flash-preview-05-20",
     )
 
 
@@ -114,7 +114,7 @@ class TestGetUnscoredOffers:
             score=0.9,
             summary="Great fit",
             scored_at=datetime.now(),
-            model_name="qwen2.5:3b",
+            model_name="google/gemini-2.5-flash-preview-05-20",
         )
         db_session.add(score)
         db_session.commit()
@@ -137,7 +137,7 @@ class TestGetUnscoredOffers:
             score=0.9,
             summary="Great fit",
             scored_at=datetime.now(),
-            model_name="qwen2.5:3b",
+            model_name="google/gemini-2.5-flash-preview-05-20",
         )
         db_session.add(score)
         db_session.commit()
@@ -155,7 +155,7 @@ class TestDiscoverAgents:
     def test_finds_agents(self, config):
         with (
             patch.object(ScoringEngine, "_load_profile", return_value="profile"),
-            patch("career_scout_ai.scoring.engine.OllamaClient"),
+            patch("career_scout_ai.scoring.engine.OpenRouterClient"),
         ):
             engine = ScoringEngine(config)
 
@@ -172,7 +172,7 @@ class TestDiscoverAgents:
 
         with (
             patch.object(ScoringEngine, "_load_profile", return_value="profile"),
-            patch("career_scout_ai.scoring.engine.OllamaClient"),
+            patch("career_scout_ai.scoring.engine.OpenRouterClient"),
         ):
             engine = ScoringEngine(config_copy)
 
@@ -185,9 +185,11 @@ class TestScoreNewOffers:
 
         with (
             patch.object(ScoringEngine, "_load_profile", return_value="profile"),
-            patch("career_scout_ai.scoring.engine.OllamaClient") as mock_ollama_class,
+            patch(
+                "career_scout_ai.scoring.engine.OpenRouterClient"
+            ) as mock_client_class,
         ):
-            mock_client = mock_ollama_class.return_value
+            mock_client = mock_client_class.return_value
             mock_client.is_available.return_value = True
             mock_client.score_offer.return_value = mock_result
             engine = ScoringEngine(config)
@@ -206,14 +208,16 @@ class TestScoreNewOffers:
         assert len(scores) == 2
         assert all(s.score == 0.85 for s in scores)
 
-    def test_skips_when_ollama_unavailable(
+    def test_skips_when_client_unavailable(
         self, db_session: Session, sample_offers, config
     ):
         with (
             patch.object(ScoringEngine, "_load_profile", return_value="profile"),
-            patch("career_scout_ai.scoring.engine.OllamaClient") as mock_ollama_class,
+            patch(
+                "career_scout_ai.scoring.engine.OpenRouterClient"
+            ) as mock_client_class,
         ):
-            mock_client = mock_ollama_class.return_value
+            mock_client = mock_client_class.return_value
             mock_client.is_available.return_value = False
             engine = ScoringEngine(config)
             engine.client = mock_client
