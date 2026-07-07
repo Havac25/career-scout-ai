@@ -10,6 +10,29 @@ logger = logging.getLogger(__name__)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
+SCORING_RESULT_SCHEMA = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "scoring_result",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "score": {
+                    "type": "number",
+                    "description": "0.0 = no match, 1.0 = perfect match",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "Why the offer received this score",
+                },
+            },
+            "required": ["score", "summary"],
+            "additionalProperties": False,
+        },
+    },
+}
+
 
 class OpenRouterClient:
     """HTTP client for the OpenRouter cloud LLM API."""
@@ -63,6 +86,7 @@ class OpenRouterClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            "response_format": SCORING_RESULT_SCHEMA,
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
