@@ -87,6 +87,7 @@ class OpenRouterClient:
                 {"role": "user", "content": user_prompt},
             ],
             "response_format": SCORING_RESULT_SCHEMA,
+            "plugins": [{"id": "response-healing"}],
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
