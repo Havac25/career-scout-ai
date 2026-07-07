@@ -28,9 +28,9 @@
 
 ## Project Vision
 
-A Python application that scrapes IT job listings from PL+FR portals in the background, deduplicates (hashing + fuzzy matching), stores in SQLite, then filters/scores them with a local LLM (Ollama) against the user's profile and agent-defined criteria. Outputs ranked HTML reports. UI via FastAPI + TailwindCSS + HTMX. Runs locally on Mac; optional migration to Oracle Cloud Free Tier.
+A Python application that scrapes IT job listings from PL+FR portals in the background, deduplicates (hashing + fuzzy matching), stores in SQLite, then filters/scores them with a cloud LLM (Gemini via OpenRouter) against the user's profile and agent-defined criteria. Outputs ranked HTML reports. UI via FastAPI + TailwindCSS + HTMX. Runs locally on Mac; optional migration to Oracle Cloud Free Tier.
 
-**Cost:** $0 (Ollama is local; optional GPT-4o-mini for future enhancements ~$1-3/month).
+**Cost:** Minimal pay-as-you-go API costs (typically <$1/month utilizing Gemini 2.5 Flash via OpenRouter; local Ollama client archived for potential future $0 cost offline runs).
 
 ---
 
@@ -45,8 +45,8 @@ A Python application that scrapes IT job listings from PL+FR portals in the back
 | Database | SQLite + SQLAlchemy 2.0 | Zero config; PostgreSQL migration possible |
 | Migrations | Alembic | — |
 | Config | `pydantic-settings` + `.env` | — |
-| Local LLM | Ollama (`qwen2.5:3b`) | Scoring, summaries — zero cost |
-| Cloud LLM (optional) | GPT-4o-mini | Future option for trend reports |
+| Cloud LLM (Primary) | Gemini 2.5 Flash (via OpenRouter) | Scoring, summaries — strict JSON format, fast & highly cost-effective |
+| Local LLM (Archived) | Ollama (`qwen2.5:3b`) | Scoring, summaries — archived in codebase for future offline use |
 | Scheduler | APScheduler | Scraping and report schedules |
 | Web UI | FastAPI + Jinja2 + HTMX + TailwindCSS | — |
 | Charts | Plotly / Chart.js | Trend visualization |
@@ -76,7 +76,7 @@ graph LR
 
     subgraph "Intelligence (Phase 3 & 4)"
         SE[Scoring Engine]
-        OL[Ollama - Local LLM]
+        OR["OpenRouter - Cloud LLM (Gemini)"]
         EM[Sentence Transformers]
     end
 
@@ -89,10 +89,37 @@ graph LR
     SC --> DD
     DD --> DB
     DB <--> SE
-    SE <--> OL
+    SE <--> OR
     DB <--> EM
     DB --> WEB
     WEB --> UI
+```
+
+### Scoring Workflow
+
+The scoring phase evaluates freshly scraped offers against the user's career profile using persona-based agents.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DB as SQLite Database
+    participant SE as Scoring Engine
+    participant FS as Config Files
+    participant OR as OpenRouter (Gemini)
+
+    SE->>FS: Load config/profile.md & config/agents/*.md
+    FS-->>SE: User profile & Agent rubrics
+    SE->>DB: Fetch unscored, non-duplicate Job Listings
+    DB-->>SE: List of new offers
+
+    loop For each Agent
+        loop For each unscored Offer
+            SE->>SE: Build System Prompt (Agent Rubric)<br/>Build User Prompt (Profile + Offer)
+            SE->>OR: POST /chat/completions<br/>(Enforces Strict JSON Schema)
+            OR-->>SE: Parsed JSON { "score": float, "summary": str }
+            SE->>DB: Insert AgentScore record
+        end
+    end
 ```
 
 ---
@@ -131,7 +158,8 @@ career-scout-ai/
 │   │   ├── dedup.py
 │   │   └── migrations/
 │   ├── llm/
-│   │   └── ollama_client.py    # Local Ollama connection
+│   │   ├── ollama_client.py    # Local Ollama connection (archived)
+│   │   └── openrouter_client.py # Cloud OpenRouter client (Gemini)
 │   ├── scoring/
 │   │   ├── engine.py           # Scoring orchestration
 │   │   └── prompts.py          # Profile + agent + offer templates
@@ -205,12 +233,14 @@ career-scout-ai/
    - `scored_at`, `model_version`
    - Unique constraint on (job_listing_id, agent_name)
 3. Agent definitions as .md files in `config/agents/` — describes what kind of offers to select. Scoring prompt combines profile + agent instructions + offer → score (0-1) + summary.
-4. Ollama client + retry logic + timeout handling
+4. OpenRouter/Gemini API client + retry/backoff logic + response formatting + response healing
 
 #### Notes
 
-- Ollama-only (no paid models). Design so swapping to an API model is trivial (same prompt, different client).
-- ~200 offers/day × ~10s/offer = ~33 min batch — acceptable for daily run.
+- Migrated to Cloud LLM (`google/gemini-2.5-flash` via OpenRouter). The pipeline utilizes OpenRouter's strict JSON schema mode and response-healing features to ensure robust scoring results.
+- ~200 offers/day processed very rapidly compared to local execution (sub-second or low-second response times).
+- Extremely low cost: Gemini-2.5-flash is highly cost-efficient, keeping monthly costs negligible.
+- Ollama client kept as an archived fallback in the codebase for potential fully-offline or self-hosted deployment.
 - No separate CV parser needed — profile is a plain .md file read directly.
 - Multi-agent design: adding a new agent = new .md instruction file in `config/agents/` + scoring run. No migration needed.
 - Re-scoring one agent (e.g., after prompt change) doesn't affect other agents' results.
@@ -257,7 +287,7 @@ career-scout-ai/
 - **Phase 1: Foundation**
 - **JustJoinIT scraper** (v2 API)
 - **NoFluffJobs scraper** (JSON API + multilocation dedup)
-- **Phase 4: LLM Scoring** (Ollama integration, multi-agent engine, AgentScore storage)
+- **Phase 4: LLM Scoring** (OpenRouter / Gemini cloud integration, multi-agent engine, AgentScore storage)
 
 ### In Progress 🔧
 
@@ -275,9 +305,6 @@ career-scout-ai/
 
 **Phase 3:**
 - [ ] Fuzzy cross-portal dedup (rapidfuzz, threshold 85%)
-
-**Phase 4:**
-- [ ] Ollama client, scoring prompt, profile.md, AgentScore model
 
 **Phase 5:**
 - [ ] FastAPI + HTMX UI
@@ -304,12 +331,16 @@ career-scout-ai/
 | 11 | 2026-06 | **UniqueConstraint** on `(job_listing_id, agent_name)` | Ensures an offer is only scored once per agent. Prevents duplicate calls and ensures idempotent scoring runs. |
 | 12 | 2026-06 | **Scoring only NEW offers** | Efficiency: ~30-50 min for ~200 new offers daily. Scoring already stored offers is unnecessary. |
 | 13 | 2026-06 | **Oracle Cloud ARM (24GB RAM)** for deployment | Qwen3-8B requires ~6GB. Oracle's free tier is the only one sufficient for local LLM execution. |
+| 14 | 2026-07 | **Migration to Cloud LLM (Gemini-2.5-flash via OpenRouter)** | Cloud-based Gemini-2.5-flash offers superior intelligence, strict JSON schema compliance, and response healing at negligible pay-as-you-go costs ($0.075 / 1M tokens), while eliminating local GPU/RAM hardware requirements. |
+| 15 | 2026-07 | **Preserve Ollama client as archived fallback** | Retains local offline option (`ollama_client.py`) in the codebase for potential future local-only execution. |
+| 16 | 2026-07 | **Consolidated setup and guide** | Replaced multiple OS-specific script variants with a single parameterizable `setup.sh` and a unified `docs/setup-guide.md` to simplify maintenance and VM/local developer onboarding. |
 
 ---
 
 ## Related Documents
 
-- [architecture.md](architecture.md) — current architecture, data models, pipeline
+- [setup-guide.md](setup-guide.md) — instructions on setting up, running, troubleshooting, and scheduling the pipeline
 - [legal.md](legal.md) — scraping legal analysis per portal
-- [original-plan.md](original-plan.md) — archive: original full plan (model details, deployment, rate limits)
-- [decisions.md](decisions.md) — archive: ADRs in full format (context/decision/rationale)
+- [original-plan.md](archive/original-plan.md) — archive: original full plan (model details, deployment, rate limits)
+- [decisions.md](archive/decisions.md) — archive: ADRs in full format (context/decision/rationale)
+- [roadmap.md](archive/roadmap.md) — archive: original Phase 1 & 2 implementation milestones (Polish)
