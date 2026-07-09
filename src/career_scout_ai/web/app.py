@@ -41,7 +41,7 @@ app = FastAPI(title="Career Scout AI — Mission Control", lifespan=lifespan)
 
 
 def _cutoff() -> datetime:
-    return datetime.now() - timedelta(weeks=2)
+    return datetime.now() - timedelta(days=7)
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ async def index() -> FileResponse:
 
 @app.get("/api/stats")
 async def get_stats(db: DbDep) -> JSONResponse:
-    """Summary statistics for the header bar (last-2-weeks window)."""
+    """Summary statistics for the header bar (last-week window)."""
     cutoff = _cutoff()
 
     filters = [
@@ -105,7 +105,7 @@ async def get_recommendations(
 ) -> JSONResponse:
     """
     Paginated job recommendations sorted by score descending.
-    Only includes non-duplicate offers scraped within the last 2 weeks.
+    Only includes non-duplicate offers scraped within the last 1 week.
 
     When multiple agents score the same job, the highest-scoring agent row
     is used (via a MAX subquery), keeping each job appearing at most once.
