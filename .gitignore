@@ -39,3 +39,4 @@ node_modules/
 sandbox/
 config/profile.md
 
+sync_files.sh
