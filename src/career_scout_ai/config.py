@@ -9,6 +9,10 @@ class AppConfig(BaseSettings):
     app_name: str = "Career Scout AI"
     database_path: Path = PROJECT_ROOT / "data" / "career_scout.db"
 
+    # Web server
+    web_port: int = 8080
+    web_host: str = "127.0.0.1"
+
     # Ollama (local LLM — archived, kept for future use)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"

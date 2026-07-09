@@ -15,7 +15,7 @@
    - [Phase 2: Scraper Engine](#phase-2-scraper-engine)
    - [Phase 3: Advanced Deduplication](#phase-3-advanced-deduplication)
    - [Phase 4: LLM Scoring & Reports](#phase-4-llm-scoring--reports)
-   - [Phase 5: Web UI](#phase-5-web-ui)
+    - [Phase 5: Web UI 🔧](#phase-5-web-ui-)
    - [Phase 6: Automation & Deployment](#phase-6-automation--deployment)
 5. [Implementation Status](#implementation-status)
    - [Done ✅](#done-)
@@ -94,6 +94,145 @@ graph LR
     DB --> WEB
     WEB --> UI
 ```
+
+### Database Schema
+
+The system uses SQLite with SQLAlchemy 2.0 ORM. The schema is designed to track scraping execution, store unique job listings, and record agent-based scores.
+
+#### `JobListing`
+Immutable core record of a job offer. Uniqueness is enforced via a 2-layer deduplication process (URL + content hash).
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>url</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Original URL of the job offer</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>title</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Job title</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>company</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Company name</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>content_hash</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">SHA256 hash of (title + company + description)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>is_duplicate</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Boolean</td>
+      <td style="border: 1px solid #888; padding: 8px;">Flag indicating fuzzy cross-portal match (saves alternate versions)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>created_at</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Timestamp of offer ingestion</td>
+    </tr>
+  </tbody>
+</table>
+
+#### `ScrapingRun`
+Tracks metadata about individual scraping executions.
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>start_time</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Execution start timestamp</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>end_time</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Execution completion timestamp</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>status</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Status of the scraping execution</td>
+    </tr>
+  </tbody>
+</table>
+
+#### `AgentScore`
+Stores the LLM's evaluation of a `JobListing`. Enforces a unique constraint on `(job_listing_id, agent_name)` to ensure one score per agent persona.
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>job_listing_id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Foreign key referencing the <code>JobListing</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>agent_name</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Name of the scoring persona (e.g., "ml-researcher")</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>score</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Float</td>
+      <td style="border: 1px solid #888; padding: 8px;">Evaluation score ranging from 0.0 to 1.0</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>summary</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Text</td>
+      <td style="border: 1px solid #888; padding: 8px;">LLM-generated reasoning for the score</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>model_version</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">LLM version used during evaluation</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>scored_at</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Timestamp of the scoring action</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Scraper Workflows
 
@@ -316,16 +455,52 @@ career-scout-ai/
 | **DeepSeek-R1** | 128K | API / Multi-GPU | Deep gap analysis of profile and offer | Native *Chain-of-Thought* (unlocks hidden reasoning) |
 | **Llama 4 Scout** | 10M | vLLM cluster / API | Processing entire sites with DOM/PDF structure | Linear attention scaling, ultra-low TTFT |
 
-### Phase 5: Web UI
+### Phase 5: Web UI 🔧
 
 #### Plan
 
-1. Static HTML report with top offers ranked by score + summaries
-2. FastAPI + Jinja2 + HTMX + TailwindCSS (+ DaisyUI)
-3. Views: Dashboard, Listings (filtering/sorting), Reports, Settings
-4. Charts: Plotly — tech trends, salary ranges, % remote
+1. ✅ Interactive dashboard with real-time stats and job listings
+2. ✅ FastAPI backend + pure HTML/CSS/JavaScript frontend (cyberpunk-themed)
+3. ✅ Two REST API endpoints for data retrieval (`/api/stats`, `/api/recommendations`)
+4. ✅ Expandable job detail panels with tabs (AI Analysis + Offer Details)
+5. ✅ Pagination support with "Load More" button
+6. 📋 Charts: Plotly — tech trends, salary ranges, % remote (future)
+
+#### Implementation Details
+
+**Current Status:** POC implemented and functional.
+
+**Features:**
+- **Mission Control Dashboard** — Cyberpunk-themed interface with:
+  - Real-time stats header (targets acquired, avg match score, top score, last scan time)
+  - Job listings table sorted by score descending
+  - Color-coded match score indicators (CRITICAL, STRONG, CANDIDATE, BACKUP, REJECT)
+  - Single-click expansion to view detailed offer information and LLM analysis
+  - Portal badges (JJI, NFJ) indicating job source
+  - Direct links to original job postings
+
+**API Endpoints:**
+- `GET /api/stats` — Summary statistics for last 7 days (total offers, average/max scores, last scan timestamp)
+- `GET /api/recommendations` — Paginated job listings with best agent scores, filtered by non-duplicate status and recency
+
+**Technology Stack:**
+- Backend: FastAPI (lightweight, async-ready)
+- Frontend: Vanilla HTML/CSS/JavaScript (no framework dependencies)
+- Styling: Custom cyberpunk theme with glitch effects, neon colors, grid background, CRT scanlines
+- Auto-open browser on startup via Python's `webbrowser` module
+
+**Data Filtering:**
+- Only displays non-duplicate offers (`is_duplicate=false`)
+- Time window: last 7 days from current date
+- When multiple agents score the same job, displays the highest score
+- Each job appears at most once in results
 
 #### Notes
+
+- Entry point: `python -m career_scout_ai.web` or configured CLI command via `serve()` function
+- Requires database with scraped listings and scoring results to display meaningful content
+- Port and host configurable via `.env` (`WEB_HOST`, `WEB_PORT`)
+- Browser auto-opens on server startup (can be disabled if needed)
 
 ### Phase 6: Automation & Deployment
 
@@ -350,6 +525,7 @@ career-scout-ai/
 - **JustJoinIT scraper** (v2 API)
 - **NoFluffJobs scraper** (JSON API + multilocation dedup)
 - **Phase 4: LLM Scoring** (OpenRouter / Gemini cloud integration, multi-agent engine, AgentScore storage)
+- **Phase 5: Web UI** (FastAPI dashboard, stats API, recommendations API with pagination, cyberpunk theme)
 
 ### In Progress 🔧
 
@@ -369,7 +545,10 @@ career-scout-ai/
 - [ ] Fuzzy cross-portal dedup (rapidfuzz, threshold 85%)
 
 **Phase 5:**
-- [ ] FastAPI + HTMX UI
+- [x] FastAPI + REST API endpoints (`/api/stats`, `/api/recommendations`)
+- [x] Interactive cyberpunk-themed dashboard with pagination
+- [x] Job detail expansion with tabbed panels (AI Analysis, Offer Details)
+- [ ] Charts: Plotly — tech trends, salary ranges, % remote
 
 **Phase 6:**
 - [ ] APScheduler, deployment
@@ -396,6 +575,7 @@ career-scout-ai/
 | 14 | 2026-07 | **Migration to Cloud LLM (Gemini-2.5-flash via OpenRouter)** | Cloud-based Gemini-2.5-flash offers superior intelligence, strict JSON schema compliance, and response healing at negligible pay-as-you-go costs ($0.075 / 1M tokens), while eliminating local GPU/RAM hardware requirements. |
 | 15 | 2026-07 | **Preserve Ollama client as archived fallback** | Retains local offline option (`ollama_client.py`) in the codebase for potential future local-only execution. |
 | 16 | 2026-07 | **Consolidated setup and guide** | Replaced multiple OS-specific script variants with a single parameterizable `setup.sh` and a unified `docs/setup-guide.md` to simplify maintenance and VM/local developer onboarding. |
+| 17 | 2026-07 | **Web UI: Vanilla JS + FastAPI** instead of HTMX/TailwindCSS framework | Minimal dependencies, full control over styling and interactions. Cyberpunk theme provides distinctive brand identity and improved visual hierarchy for job matching data. No build step required. |
 
 ---
 

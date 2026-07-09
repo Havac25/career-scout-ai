@@ -36,6 +36,7 @@ node_modules/
 
 .ssh
 
-# Sandbox and personal configs
 sandbox/
 config/profile.md
+
+sync_files.sh

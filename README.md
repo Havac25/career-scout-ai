@@ -44,7 +44,7 @@ This variable is used to set the name of the application. Ensure that the `.env`
 
 ## Usage
 
-Run the scrapers (sequential: JustJoinIT → NoFluffJobs):
+### Running the Scraper
 
 ```bash
 uv run career-scout-ai
@@ -52,9 +52,20 @@ uv run career-scout-ai
 
 Results are stored in `data/career_scout.db` (SQLite). Logs go to `data/scraper.log`.
 
+### Running the Web UI Dashboard
+
+```bash
+python -m career_scout_ai.web
+```
+
+Opens an interactive cyberpunk-themed dashboard on `http://localhost:8000` displaying job recommendations, match scores, and detailed offer analysis.
+
+**Note:** The dashboard requires scraped data and agent scores. Run the scraper first, then start the Web UI.
+
 ## Documentation
 
 See `docs/` for detailed project documentation:
 
 - [`docs/project-plan.md`](docs/project-plan.md) — vision, architecture, implementation plan, status, and ADRs
+- [`docs/setup-guide.md`](docs/setup-guide.md) — setup instructions, running scraper and Web UI, troubleshooting
 - [`docs/legal.md`](docs/legal.md) — scraping risk analysis per portal
