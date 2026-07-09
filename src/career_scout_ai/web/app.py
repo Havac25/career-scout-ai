@@ -188,6 +188,19 @@ async def get_recommendations(
 
 
 def serve() -> None:
+    import threading
+    import time
+    import webbrowser
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # Auto-open browser after server starts
+    def open_browser():
+        time.sleep(2)  # Wait for server to start
+        url = f"http://{config.web_host}:{config.web_port}"
+        webbrowser.open(url)
+
+    thread = threading.Thread(target=open_browser, daemon=True)
+    thread.start()
+
+    uvicorn.run(app, host=config.web_host, port=config.web_port)
