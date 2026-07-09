@@ -95,6 +95,145 @@ graph LR
     WEB --> UI
 ```
 
+### Database Schema
+
+The system uses SQLite with SQLAlchemy 2.0 ORM. The schema is designed to track scraping execution, store unique job listings, and record agent-based scores.
+
+#### `JobListing`
+Immutable core record of a job offer. Uniqueness is enforced via a 2-layer deduplication process (URL + content hash).
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>url</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Original URL of the job offer</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>title</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Job title</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>company</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Company name</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>content_hash</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">SHA256 hash of (title + company + description)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>is_duplicate</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Boolean</td>
+      <td style="border: 1px solid #888; padding: 8px;">Flag indicating fuzzy cross-portal match (saves alternate versions)</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>created_at</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Timestamp of offer ingestion</td>
+    </tr>
+  </tbody>
+</table>
+
+#### `ScrapingRun`
+Tracks metadata about individual scraping executions.
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>start_time</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Execution start timestamp</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>end_time</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Execution completion timestamp</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>status</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Status of the scraping execution</td>
+    </tr>
+  </tbody>
+</table>
+
+#### `AgentScore`
+Stores the LLM's evaluation of a `JobListing`. Enforces a unique constraint on `(job_listing_id, agent_name)` to ensure one score per agent persona.
+
+<table style="border-collapse: collapse; border: 1px solid #888; width: 800px; table-layout: fixed; text-align: left;">
+  <thead>
+    <tr>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Column</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 20%;">Type</th>
+      <th style="border: 1px solid #888; padding: 8px; width: 60%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Primary key</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>job_listing_id</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Integer</td>
+      <td style="border: 1px solid #888; padding: 8px;">Foreign key referencing the <code>JobListing</code></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>agent_name</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">Name of the scoring persona (e.g., "ml-researcher")</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>score</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Float</td>
+      <td style="border: 1px solid #888; padding: 8px;">Evaluation score ranging from 0.0 to 1.0</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>summary</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">Text</td>
+      <td style="border: 1px solid #888; padding: 8px;">LLM-generated reasoning for the score</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>model_version</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">String</td>
+      <td style="border: 1px solid #888; padding: 8px;">LLM version used during evaluation</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #888; padding: 8px;"><code>scored_at</code></td>
+      <td style="border: 1px solid #888; padding: 8px;">DateTime</td>
+      <td style="border: 1px solid #888; padding: 8px;">Timestamp of the scoring action</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Scraper Workflows
 
 #### JustJoinIT Scraper
