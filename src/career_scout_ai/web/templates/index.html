@@ -40,7 +40,7 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; font-size: 17px; }
 
     body {
       background: var(--bg);
@@ -123,7 +123,7 @@
 
     h1 {
       font-family: var(--font-display);
-      font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+      font-size: clamp(1.7rem, 4.2vw, 3.0rem);
       font-weight: 900; letter-spacing: 0.12em;
       color: var(--cyan);
       text-shadow: var(--glow-cyan);
@@ -161,8 +161,8 @@
     }
 
     .subtitle {
-      font-size: 0.7rem; letter-spacing: 5px;
-      color: var(--dim); margin-top: 0.6rem;
+      font-size: 0.8rem; letter-spacing: 5px;
+      color: #7693a6; margin-top: 0.6rem;
     }
 
     /* ── Stats bar ────────────────────────────────────────── */
@@ -181,8 +181,8 @@
     }
     .stat:last-child { border-right: none; }
     .stat-lbl {
-      display: block; font-size: 0.55rem; letter-spacing: 2.5px;
-      color: var(--dim); margin-bottom: 0.35rem;
+      display: block; font-size: 0.65rem; letter-spacing: 2.5px;
+      color: #7693a6; margin-bottom: 0.35rem;
     }
     .stat-val {
       display: block; font-family: var(--font-display);
@@ -219,15 +219,15 @@
       font-size: 0.6rem; letter-spacing: 3px; color: var(--cyan);
     }
     .table-meta {
-      font-size: 0.6rem; letter-spacing: 1px; color: var(--dim);
+      font-size: 0.7rem; letter-spacing: 1px; color: #7693a6;
     }
 
     table { width: 100%; border-collapse: collapse; }
 
     thead th {
       font-family: var(--font-display);
-      font-size: 0.58rem; letter-spacing: 2.5px; font-weight: 600;
-      color: var(--dim); text-align: left;
+      font-size: 0.65rem; letter-spacing: 2.5px; font-weight: 600;
+      color: #7693a6; text-align: left;
       padding: 0.75rem 1.4rem;
       border-bottom: 1px solid var(--border);
       white-space: nowrap; user-select: none;
@@ -255,8 +255,8 @@
     .offer-row td { padding: 0.9rem 1.4rem; vertical-align: middle; }
 
     .rank {
-      font-family: var(--font-display); font-size: 0.58rem;
-      color: var(--dim); width: 2.8rem;
+      font-family: var(--font-display); font-size: 0.75rem;
+      color: #7693a6; width: 2.8rem;
     }
 
     /* Job title column */
@@ -274,7 +274,7 @@
     .tag-nfj { background: rgba(180,0,255,0.12); color: #c840ff; border: 1px solid rgba(180,0,255,0.25); }
 
     /* Company column */
-    .company { font-size: 0.78rem; color: var(--dim); }
+    .company { font-size: 0.85rem; color: #8faebd; }
 
     /* ── Score bar cell ───────────────────────────────────── */
     .score-cell {
@@ -339,11 +339,11 @@
       border-bottom: 1px solid var(--border);
     }
     .tab-btn {
-      font-family: var(--font-display); font-size: 0.58rem; letter-spacing: 2px;
+      font-family: var(--font-display); font-size: 0.65rem; letter-spacing: 2px;
       padding: 0.55rem 1.3rem;
       background: transparent; border: none;
       border-bottom: 2px solid transparent;
-      cursor: pointer; color: var(--dim);
+      cursor: pointer; color: #7693a6;
       transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
       position: relative; bottom: -1px;
     }
@@ -369,8 +369,8 @@
     .meta-strip {
       display: flex; flex-wrap: wrap; gap: 1.2rem;
     }
-    .meta-kv { font-size: 0.62rem; letter-spacing: 0.5px; }
-    .meta-k { color: var(--dim); margin-right: 0.3rem; }
+    .meta-kv { font-size: 0.70rem; letter-spacing: 0.5px; }
+    .meta-k { color: #7693a6; margin-right: 0.3rem; }
     .meta-v { color: var(--cyan); }
 
     /* ── Offer Details panel ──────────────────────────────── */
@@ -386,13 +386,13 @@
       border: 1px solid rgba(255,255,255,0.055);
     }
     .detail-card-lbl {
-      display: block; font-size: 0.5rem; letter-spacing: 2px;
-      color: var(--dim); margin-bottom: 0.3rem;
+      display: block; font-size: 0.6rem; letter-spacing: 2px;
+      color: #7693a6; margin-bottom: 0.3rem;
     }
     .detail-card-val { font-size: 0.78rem; color: var(--text); }
 
     .desc-box {
-      font-size: 0.75rem; line-height: 1.65; color: var(--dim);
+      font-size: 0.85rem; line-height: 1.65; color: var(--text);
       max-height: 260px; overflow-y: auto;
       padding: 0.75rem 0.9rem;
       background: rgba(255,255,255,0.015);
@@ -468,7 +468,7 @@
       border-top: 1px solid rgba(0,229,255,0.08);
     }
     .footer-line {
-      font-size: 0.55rem; letter-spacing: 3px; color: var(--dim);
+      font-size: 0.65rem; letter-spacing: 3px; color: #7693a6;
     }
     .footer-status { color: var(--green); }
 
@@ -557,7 +557,7 @@
     <!-- ===== FOOTER ===== -->
     <footer>
       <p class="footer-line">
-        CAREER SCOUT AI &nbsp;·&nbsp; LAST 14 DAYS &nbsp;·&nbsp;
+        CAREER SCOUT AI &nbsp;·&nbsp; LAST 7 DAYS &nbsp;·&nbsp;
         <span class="footer-status">● SYSTEM ONLINE</span>
       </p>
     </footer>
@@ -822,7 +822,7 @@
       const shown = S.items.length;
       const total = data.total;
       document.getElementById('tbl-meta').textContent =
-        `${shown} OF ${total} TARGETS · LAST 14 DAYS`;
+        `${shown} OF ${total} TARGETS · LAST 7 DAYS`;
 
       const wrap = document.getElementById('load-more-wrap');
       wrap.style.display = S.hasMore ? 'block' : 'none';
