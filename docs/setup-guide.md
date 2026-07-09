@@ -110,7 +110,53 @@ systemctl --user disable --now career-scout-ai.timer
 
 ---
 
-## 5. Running the Application Manually
+## 5. Running the Web UI
+
+The Career Scout AI Web UI is a real-time dashboard for viewing job recommendations and match scores.
+
+### Starting the Server
+
+```bash
+# Option 1: via Python module
+python -m career_scout_ai.web
+
+# Option 2: via uv
+uv run career-scout-ai --web
+```
+
+The server starts on `http://localhost:8000` by default (configurable via `.env`):
+- `WEB_HOST` — Bind address (default: `127.0.0.1`)
+- `WEB_PORT` — Port number (default: `8000`)
+
+**Browser Auto-Open:** The application automatically opens your default browser to the dashboard on startup.
+
+### Dashboard Features
+
+- **Mission Control Interface** — Cyberpunk-themed dashboard showing job recommendations
+- **Real-time Statistics** — Total targets, average match score, highest score, last scan timestamp
+- **Job Listings** — Paginated table of non-duplicate offers sorted by match score
+- **Job Details** — Click any row to expand and view:
+  - **AI Analysis** — LLM-generated scoring rationale and match tier
+  - **Offer Details** — Location, workplace type, salary, contract terms, description, and direct job link
+- **Score Indicators** — Color-coded tiers (CRITICAL, STRONG, CANDIDATE, BACKUP, REJECT)
+- **Portal Badges** — Visual indicators showing job source (JJI, NFJ)
+
+### Data Requirements
+
+The dashboard displays data from the last 7 days. To see meaningful content:
+
+1. Run the scraper to populate job listings:
+   ```bash
+   uv run career-scout-ai
+   ```
+
+2. Ensure scoring has completed. Jobs must have agent scores to appear in recommendations.
+
+3. The `/api/stats` endpoint shows only non-duplicate offers with agent scores.
+
+---
+
+## 6. Running the Application Manually
 
 ```bash
 # 1. Navigate to the project directory
@@ -124,6 +170,6 @@ uv run career-scout-ai
 
 ---
 
-## 6. AI Assistant Guidelines
+## 7. AI Assistant Guidelines
 
 When initializing or running the pipeline, ensure `config/profile.md` and `config/agents/` are properly populated. These files are required for the scoring engine to evaluate and filter job listings effectively.

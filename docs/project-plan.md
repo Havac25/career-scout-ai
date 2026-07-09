@@ -15,7 +15,7 @@
    - [Phase 2: Scraper Engine](#phase-2-scraper-engine)
    - [Phase 3: Advanced Deduplication](#phase-3-advanced-deduplication)
    - [Phase 4: LLM Scoring & Reports](#phase-4-llm-scoring--reports)
-   - [Phase 5: Web UI](#phase-5-web-ui)
+    - [Phase 5: Web UI 🔧](#phase-5-web-ui-)
    - [Phase 6: Automation & Deployment](#phase-6-automation--deployment)
 5. [Implementation Status](#implementation-status)
    - [Done ✅](#done-)
@@ -455,16 +455,52 @@ career-scout-ai/
 | **DeepSeek-R1** | 128K | API / Multi-GPU | Deep gap analysis of profile and offer | Native *Chain-of-Thought* (unlocks hidden reasoning) |
 | **Llama 4 Scout** | 10M | vLLM cluster / API | Processing entire sites with DOM/PDF structure | Linear attention scaling, ultra-low TTFT |
 
-### Phase 5: Web UI
+### Phase 5: Web UI 🔧
 
 #### Plan
 
-1. Static HTML report with top offers ranked by score + summaries
-2. FastAPI + Jinja2 + HTMX + TailwindCSS (+ DaisyUI)
-3. Views: Dashboard, Listings (filtering/sorting), Reports, Settings
-4. Charts: Plotly — tech trends, salary ranges, % remote
+1. ✅ Interactive dashboard with real-time stats and job listings
+2. ✅ FastAPI backend + pure HTML/CSS/JavaScript frontend (cyberpunk-themed)
+3. ✅ Two REST API endpoints for data retrieval (`/api/stats`, `/api/recommendations`)
+4. ✅ Expandable job detail panels with tabs (AI Analysis + Offer Details)
+5. ✅ Pagination support with "Load More" button
+6. 📋 Charts: Plotly — tech trends, salary ranges, % remote (future)
+
+#### Implementation Details
+
+**Current Status:** POC implemented and functional.
+
+**Features:**
+- **Mission Control Dashboard** — Cyberpunk-themed interface with:
+  - Real-time stats header (targets acquired, avg match score, top score, last scan time)
+  - Job listings table sorted by score descending
+  - Color-coded match score indicators (CRITICAL, STRONG, CANDIDATE, BACKUP, REJECT)
+  - Single-click expansion to view detailed offer information and LLM analysis
+  - Portal badges (JJI, NFJ) indicating job source
+  - Direct links to original job postings
+
+**API Endpoints:**
+- `GET /api/stats` — Summary statistics for last 7 days (total offers, average/max scores, last scan timestamp)
+- `GET /api/recommendations` — Paginated job listings with best agent scores, filtered by non-duplicate status and recency
+
+**Technology Stack:**
+- Backend: FastAPI (lightweight, async-ready)
+- Frontend: Vanilla HTML/CSS/JavaScript (no framework dependencies)
+- Styling: Custom cyberpunk theme with glitch effects, neon colors, grid background, CRT scanlines
+- Auto-open browser on startup via Python's `webbrowser` module
+
+**Data Filtering:**
+- Only displays non-duplicate offers (`is_duplicate=false`)
+- Time window: last 7 days from current date
+- When multiple agents score the same job, displays the highest score
+- Each job appears at most once in results
 
 #### Notes
+
+- Entry point: `python -m career_scout_ai.web` or configured CLI command via `serve()` function
+- Requires database with scraped listings and scoring results to display meaningful content
+- Port and host configurable via `.env` (`WEB_HOST`, `WEB_PORT`)
+- Browser auto-opens on server startup (can be disabled if needed)
 
 ### Phase 6: Automation & Deployment
 
@@ -489,6 +525,7 @@ career-scout-ai/
 - **JustJoinIT scraper** (v2 API)
 - **NoFluffJobs scraper** (JSON API + multilocation dedup)
 - **Phase 4: LLM Scoring** (OpenRouter / Gemini cloud integration, multi-agent engine, AgentScore storage)
+- **Phase 5: Web UI** (FastAPI dashboard, stats API, recommendations API with pagination, cyberpunk theme)
 
 ### In Progress 🔧
 
@@ -508,7 +545,10 @@ career-scout-ai/
 - [ ] Fuzzy cross-portal dedup (rapidfuzz, threshold 85%)
 
 **Phase 5:**
-- [ ] FastAPI + HTMX UI
+- [x] FastAPI + REST API endpoints (`/api/stats`, `/api/recommendations`)
+- [x] Interactive cyberpunk-themed dashboard with pagination
+- [x] Job detail expansion with tabbed panels (AI Analysis, Offer Details)
+- [ ] Charts: Plotly — tech trends, salary ranges, % remote
 
 **Phase 6:**
 - [ ] APScheduler, deployment
@@ -535,6 +575,7 @@ career-scout-ai/
 | 14 | 2026-07 | **Migration to Cloud LLM (Gemini-2.5-flash via OpenRouter)** | Cloud-based Gemini-2.5-flash offers superior intelligence, strict JSON schema compliance, and response healing at negligible pay-as-you-go costs ($0.075 / 1M tokens), while eliminating local GPU/RAM hardware requirements. |
 | 15 | 2026-07 | **Preserve Ollama client as archived fallback** | Retains local offline option (`ollama_client.py`) in the codebase for potential future local-only execution. |
 | 16 | 2026-07 | **Consolidated setup and guide** | Replaced multiple OS-specific script variants with a single parameterizable `setup.sh` and a unified `docs/setup-guide.md` to simplify maintenance and VM/local developer onboarding. |
+| 17 | 2026-07 | **Web UI: Vanilla JS + FastAPI** instead of HTMX/TailwindCSS framework | Minimal dependencies, full control over styling and interactions. Cyberpunk theme provides distinctive brand identity and improved visual hierarchy for job matching data. No build step required. |
 
 ---
 
