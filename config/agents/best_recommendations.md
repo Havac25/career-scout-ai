@@ -27,7 +27,7 @@ Generate the analysis in the following format:
 ```json
 {
   "score": float,
-  "summary": "Start with a direct statement on why this is (or isn't) a step in the right direction. Reference specific details from Michał's profile (e.g., 'Given your success with Dynamic Bidding...', 'Since you are frustrated by pure business logic...'). Be honest, concise, and strategic."
+  "summary": "Start with a direct statement on why this is (or isn't) a step in the right direction. Reference specific criteria from the candidate's profile that match or conflict with this offer (e.g., 'Aligns with your goal of transitioning to DL in production...', 'This is classical ML without growth opportunity...'). Be honest, concise, and strategic."
 }
 ```
 
