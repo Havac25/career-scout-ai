@@ -40,3 +40,6 @@ sandbox/
 config/profile.md
 
 sync_files.sh
+
+# Manual documentation with sensitive info
+docs/manual.md
