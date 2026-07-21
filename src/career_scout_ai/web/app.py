@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Career Scout AI — Mission Control", lifespan=lifespan)
 
 
-def _cutoff() -> datetime:
+def _default_since() -> datetime:
     return datetime.now() - timedelta(days=7)
 
 
@@ -55,9 +55,14 @@ async def index() -> FileResponse:
 
 
 @app.get("/api/stats")
-async def get_stats(db: DbDep) -> JSONResponse:
-    """Summary statistics for the header bar (last-week window)."""
-    cutoff = _cutoff()
+async def get_stats(
+    db: DbDep,
+    since: Annotated[
+        datetime | None, Query(description="ISO-8601 cutoff datetime")
+    ] = None,
+) -> JSONResponse:
+    """Summary statistics for the header bar."""
+    cutoff = since if since is not None else _default_since()
 
     filters = [
         JobListing.is_duplicate.is_(False),
@@ -100,17 +105,21 @@ async def get_stats(db: DbDep) -> JSONResponse:
 @app.get("/api/recommendations")
 async def get_recommendations(
     db: DbDep,
-    offset: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    since: Annotated[
+        datetime | None, Query(description="ISO-8601 cutoff datetime")
+    ] = None,
 ) -> JSONResponse:
     """
     Paginated job recommendations sorted by score descending.
-    Only includes non-duplicate offers scraped within the last 1 week.
+    Only includes non-duplicate offers scraped since the given cutoff
+    (defaults to 7 days ago).
 
     When multiple agents score the same job, the highest-scoring agent row
     is used (via a MAX subquery), keeping each job appearing at most once.
     """
-    cutoff = _cutoff()
+    cutoff = since if since is not None else _default_since()
 
     filters = [
         JobListing.is_duplicate.is_(False),
