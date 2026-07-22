@@ -39,7 +39,7 @@ A Python application that scrapes IT job listings from PL+FR portals in the back
 ### Overview
 
 Career Scout AI is a **production-ready proof of concept** with full end-to-end functionality:
-- **Data pipeline:** Scrapes job listings from 2 major Polish portals
+- **Data pipeline:** Scrapes job listings from 3 major portals (PL/FR)
 - **Deduplication:** Multi-layer content-based dedup prevents duplicates
 - **Intelligence:** Cloud LLM (Gemini 2.5 Flash) scores jobs against user profiles
 - **Extensibility:** Agent-based personas via markdown files; add new scoring criteria without code changes
@@ -64,6 +64,12 @@ All core flows have been tested and validated. The system currently processes ~2
 - In-memory deduplication: groups multi-location posts by (title, company) to avoid redundant detail requests
 - Conservative rate limiting: 300s (~5 min) delay per detail fetch to respect limits
 - Fetches original salary and full description per listing
+- **Status:** Fully functional, production-ready
+
+**Welcome to the Jungle Scraper** ✅
+- Integrated with Algolia Search API directly (bypassing SPA scraping and AWS WAF challenges)
+- Fetches job descriptions natively from the `profile` field in the Algolia response
+- Skips job listings missing the necessary metadata
 - **Status:** Fully functional, production-ready
 
 **Deduplication at Ingestion** (Layer 1-2)
@@ -150,9 +156,10 @@ All core flows have been tested and validated. The system currently processes ~2
     - Tab 1: AI Analysis (LLM score + summary from best agent)
     - Tab 2: Offer Details (full job description, company, salary, etc.)
   - Smooth animations and interactions
-- **Pagination:**
+- **Pagination & Filtering:**
   - "Load More" button for browsing results
   - Configurable results per page
+  - Date filter allowing users to select a custom cutoff date for displayed offers
 - **Frontend Stack:**
   - Vanilla HTML/CSS/JavaScript (894 lines, no framework dependencies)
   - No build step required
@@ -177,7 +184,6 @@ All core flows have been tested and validated. The system currently processes ~2
 | **Himalayas** | Global remote | Free JSON API (no auth) | Low | Best API — keyword/seniority/timezone search, 200-500 ML/AI listings |
 | **Remotive** | Global remote | Free JSON API (no auth) | Low | Category filter (`?category=data`), 50-200 remote ML/DS listings |
 | **AI-Jobs.net** | Global remote | HTML scraping | Low | 100% AI/ML niche, 500-2000 listings, very open robots.txt |
-| **Welcome to the Jungle** | FR (Paris, Toulouse, remote) | Algolia Search API (public key exposed) | Low | Dominant French tech job board; no Playwright needed — uses Algolia backend with public App ID + API key |
 | **Free-Work** | FR | HTML scraping | Low-Medium | Major French IT board (15k+ offers), strong for B2B/freelance ML roles |
 
 #### Worth Considering (Future Expansion)
@@ -231,10 +237,9 @@ All core flows have been tested and validated. The system currently processes ~2
 - Remote % distribution: pie chart showing remote/hybrid/office split
 
 **Filtering & Search**
-- Filter by portal (JJI, NFJ, etc.)
+- Filter by portal (JJI, NFJ, WTTJ, etc.)
 - Filter by score range (show only "CRITICAL" offers, etc.)
 - Search by keyword (title, company, location)
-- Filter by date range (last 24h, week, month)
 
 **Export Functionality**
 - Export recommendations to CSV (job title, company, score, summary, link)
