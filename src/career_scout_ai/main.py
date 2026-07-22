@@ -1,4 +1,6 @@
 import logging
+from datetime import date
+from pathlib import Path
 
 from career_scout_ai.config import AppConfig
 from career_scout_ai.scoring.engine import ScoringEngine
@@ -7,12 +9,17 @@ from career_scout_ai.storage.database import get_session_factory, init_db
 
 
 def main() -> None:
+    logs_dir = Path("data/logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    daily_log_path = logs_dir / f"logs_{date.today():%Y%m%d}.log"
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.StreamHandler(),
             logging.FileHandler("data/scraper.log"),
+            logging.FileHandler(daily_log_path),
         ],
     )
     logger = logging.getLogger(__name__)
