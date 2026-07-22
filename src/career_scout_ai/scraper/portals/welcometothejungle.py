@@ -1,6 +1,4 @@
-import json
 import logging
-import re
 import time
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -21,7 +19,6 @@ PORTAL_NAME = "welcometothejungle"
 ALGOLIA_APP_ID = "CSEKHVMS53"
 ALGOLIA_API_KEY = "4bd8f6215d0cc52b26430765769e65a0"
 ALGOLIA_URL = f"https://{ALGOLIA_APP_ID}-dsn.algolia.net/1/indexes/*/queries"
-ENV_URL = "https://www.welcometothejungle.com/api/env"
 INDEX_NAME = "wk_cms_jobs_production"
 
 OFFER_URL_TEMPLATE = (
@@ -47,12 +44,6 @@ FILTERS = (
 HITS_PER_PAGE = 50
 MAX_PAGES = 10  # per query — safety limit
 REQUEST_DELAY = 1.0  # seconds between Algolia requests
-DETAIL_DELAY = 0.5  # seconds between detail page fetches
-
-_JSONLD_RE = re.compile(
-    r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
-    re.DOTALL,
-)
 
 
 def _get_algolia_headers() -> dict[str, str]:
@@ -62,24 +53,6 @@ def _get_algolia_headers() -> dict[str, str]:
         "Content-Type": "application/json",
         "Referer": "https://www.welcometothejungle.com/",
     }
-
-
-def _fetch_description(client: httpx.Client, url: str) -> str | None:
-    """Fetch job page and extract description from JSON-LD JobPosting."""
-    try:
-        response = client.get(url, follow_redirects=True)
-        response.raise_for_status()
-        for match in _JSONLD_RE.finditer(response.text):
-            try:
-                data = json.loads(match.group(1))
-                if data.get("@type") == "JobPosting":
-                    description: str | None = data.get("description")
-                    return description
-            except (json.JSONDecodeError, AttributeError):
-                continue
-    except Exception:
-        logger.debug("[wttj] Failed to fetch description for %s", url)
-    return None
 
 
 def _format_salary(hit: dict) -> str | None:
@@ -133,7 +106,7 @@ def _parse_datetime(value: str | None) -> datetime | None:
         return None
 
 
-def _parse_offer(hit: dict, description: str | None = None) -> dict:
+def _parse_offer(hit: dict, description: str) -> dict:
     slug = hit.get("slug", "")
     org = hit.get("organization") or {}
     company = org.get("name", "")
@@ -186,11 +159,10 @@ def _fetch_page(client: httpx.Client, query: str, page: int) -> dict[str, Any]:
 
 
 def _process_offer(
-    web_client: httpx.Client,
     session: Session,
     hit: dict,
 ) -> bool | None:
-    """Dedup, fetch description, and save a single offer.
+    """Dedup check and save a single offer using Algolia profile as description.
 
     Returns True if new, False if duplicate/skipped, None if no description.
     """
@@ -199,38 +171,33 @@ def _process_offer(
     company_slug = org.get("slug", "")
     url = OFFER_URL_TEMPLATE.format(company_slug=company_slug, slug=slug)
 
-    # Preliminary dedup check (URL only, before fetching description)
-    preliminary_hash = compute_content_hash(
-        hit.get("name", ""), org.get("name", ""), None
-    )
-    result = check_duplicate(session, url, preliminary_hash)
-    if result == DedupResult.SKIP_URL:
-        return False
-
-    # Fetch full description from job page
-    description = _fetch_description(web_client, url)
-    time.sleep(DETAIL_DELAY)
-
+    # Use Algolia 'profile' field as description
+    description = hit.get("profile")
     if not description:
-        logger.debug("[wttj] No description found for %s, skipping", url)
+        logger.debug("[wttj] No profile/description in Algolia for %s, skipping", url)
         return None
 
-    parsed = _parse_offer(hit, description)
+    title = hit.get("name", "")
+    company = org.get("name", "")
+    content_hash = compute_content_hash(title, company, description)
 
-    # Re-check dedup with full content hash
-    full_result = check_duplicate(session, url, parsed["content_hash"])
-    if full_result == DedupResult.SKIP_URL:
+    # Dedup check
+    result = check_duplicate(session, url, content_hash)
+    if result == DedupResult.SKIP_URL:
         return False
-    if full_result == DedupResult.SKIP_HASH:
+    if result == DedupResult.SKIP_HASH:
+        parsed = _parse_offer(hit, description)
         parsed["is_duplicate"] = True
+        session.add(JobListing(**parsed))
+        return False
 
+    parsed = _parse_offer(hit, description)
     session.add(JobListing(**parsed))
     return True
 
 
 def _scrape_query(
     algolia_client: httpx.Client,
-    web_client: httpx.Client,
     session: Session,
     query: str,
     max_pages: int,
@@ -259,7 +226,7 @@ def _scrape_query(
             seen_ids.add(object_id)
 
             listings_found += 1
-            outcome = _process_offer(web_client, session, hit)
+            outcome = _process_offer(session, hit)
             if outcome is True:
                 listings_new += 1
             elif outcome is None:
@@ -288,22 +255,14 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
     total_skipped = 0
 
     try:
-        with (
-            httpx.Client(
-                headers=_get_algolia_headers(), timeout=30.0
-            ) as algolia_client,
-            httpx.Client(
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-                },
-                timeout=30.0,
-            ) as web_client,
-        ):
+        with httpx.Client(
+            headers=_get_algolia_headers(), timeout=30.0
+        ) as algolia_client:
             seen_ids: set[str] = set()
 
             for query in SEARCH_QUERIES:
                 found, new, skipped = _scrape_query(
-                    algolia_client, web_client, session, query, max_pages, seen_ids
+                    algolia_client, session, query, max_pages, seen_ids
                 )
                 listings_found += found
                 listings_new += new

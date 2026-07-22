@@ -1,7 +1,4 @@
-import json
-
 from career_scout_ai.scraper.portals.welcometothejungle import (
-    _fetch_description,
     _format_location,
     _format_salary,
     _get_remote_type,
@@ -127,9 +124,9 @@ class TestParseOffer:
         assert parsed["posted_at"] is not None
         assert len(parsed["content_hash"]) == 64
 
-    def test_no_description(self):
-        parsed = _parse_offer(SAMPLE_HIT, None)
-        assert parsed["description_raw"] is None
+    def test_empty_description(self):
+        parsed = _parse_offer(SAMPLE_HIT, "")
+        assert parsed["description_raw"] == ""
 
     def test_missing_optional_fields(self):
         minimal = {
@@ -146,68 +143,3 @@ class TestParseOffer:
         hit = {**SAMPLE_HIT, "contract_type": "FREELANCE"}
         parsed = _parse_offer(hit, "desc")
         assert parsed["contract_types"] == "freelance"
-
-
-class TestFetchDescription:
-    def test_extracts_from_jsonld(self, httpx_mock):
-        jsonld = json.dumps(
-            {
-                "@context": "https://schema.org",
-                "@type": "JobPosting",
-                "description": "<p>We are looking for an ML Engineer.</p>",
-            }
-        )
-        html = f'<html><script type="application/ld+json">{jsonld}</script></html>'
-        httpx_mock.add_response(
-            url="https://www.welcometothejungle.com/fr/companies/test/jobs/test-slug",
-            text=html,
-        )
-
-        import httpx
-
-        with httpx.Client() as client:
-            result = _fetch_description(
-                client,
-                "https://www.welcometothejungle.com/fr/companies/test/jobs/test-slug",
-            )
-        assert result == "<p>We are looking for an ML Engineer.</p>"
-
-    def test_picks_job_posting_over_other_types(self, httpx_mock):
-        faq = json.dumps({"@type": "FAQPage", "description": "FAQ"})
-        job = json.dumps(
-            {
-                "@type": "JobPosting",
-                "description": "The real description",
-            }
-        )
-        html = (
-            f"<html>"
-            f'<script type="application/ld+json">{faq}</script>'
-            f'<script type="application/ld+json">{job}</script>'
-            f"</html>"
-        )
-        httpx_mock.add_response(url="https://example.com/job", text=html)
-
-        import httpx
-
-        with httpx.Client() as client:
-            result = _fetch_description(client, "https://example.com/job")
-        assert result == "The real description"
-
-    def test_returns_none_when_no_jsonld(self, httpx_mock):
-        httpx_mock.add_response(url="https://example.com/job", text="<html></html>")
-
-        import httpx
-
-        with httpx.Client() as client:
-            result = _fetch_description(client, "https://example.com/job")
-        assert result is None
-
-    def test_returns_none_on_http_error(self, httpx_mock):
-        httpx_mock.add_response(url="https://example.com/job", status_code=500)
-
-        import httpx
-
-        with httpx.Client() as client:
-            result = _fetch_description(client, "https://example.com/job")
-        assert result is None

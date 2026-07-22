@@ -93,7 +93,7 @@ graph LR
     subgraph "External World"
         P1[JustJoinIT API]
         P2[NoFluffJobs API]
-        P3[WTTJ Algolia + Web]
+        P3[WTTJ Algolia API]
         P4[...]
     end
 
@@ -334,36 +334,31 @@ sequenceDiagram
 
 ### Welcome to the Jungle Scraper
 
-The WTTJ scraper uses a two-phase approach: Algolia Search API for discovery and filtering (metadata), then individual job page fetches for full descriptions via JSON-LD. Offers without a description are skipped. Multiple search queries are executed to cover ML/DS/AI roles, with in-memory deduplication by Algolia `objectID` across queries.
+The WTTJ scraper queries the Algolia Search API for discovery and uses the `profile` field from Algolia responses as the job description. No detail page fetching is needed. Offers without a `profile` field in Algolia are skipped. Multiple search queries are executed to cover ML/DS/AI roles, with in-memory deduplication by Algolia `objectID` across queries.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant SC as WTTJ Scraper
     participant ALG as Algolia Search API
-    participant WEB as WTTJ Web
     participant DB as SQLite
 
     loop For each Search Query (5 keywords)
         loop For each page (up to max_pages)
             SC->>ALG: POST /1/indexes/*/queries (keyword + filters)
-            ALG-->>SC: Hits (title, company, location, salary, slug)
+            ALG-->>SC: Hits (title, company, location, salary, slug, profile)
             loop For each Hit
                 SC->>SC: In-memory Dedup (objectID)
                 alt already seen
                     SC->>SC: Skip Hit
                 else new objectID
-                    SC->>DB: Check Duplicate (URL)
-                    alt is duplicate URL
-                        SC->>SC: Skip Hit
-                    else is new URL
-                        SC->>WEB: GET /companies/{slug}/jobs/{slug} (fetch JSON-LD)
-                        WEB-->>SC: Description (JobPosting)
-                        SC->>SC: Sleep 0.5s (DETAIL_DELAY)
-                        alt no description found
-                            SC->>SC: Skip (not saved to DB)
-                        else has description
-                            SC->>DB: Re-check Duplicate (Full Content Hash)
+                    alt no profile field
+                        SC->>SC: Skip (not saved to DB)
+                    else has profile
+                        SC->>DB: Check Duplicate (URL + Content Hash)
+                        alt is duplicate
+                            SC->>SC: Skip or mark duplicate
+                        else is new
                             SC->>DB: Insert JobListing
                         end
                     end
@@ -427,7 +422,7 @@ sequenceDiagram
 | 16 | 2026-07 | **Consolidated setup and guide** | Replaced multiple OS-specific script variants with a single parameterizable `setup.sh` and a unified `docs/setup-guide.md` to simplify maintenance and VM/local developer onboarding. |
 | 17 | 2026-07 | **Web UI: Vanilla JS + FastAPI** instead of HTMX/TailwindCSS framework | Minimal dependencies, full control over styling and interactions. Cyberpunk theme provides distinctive brand identity and improved visual hierarchy for job matching data. No build step required. |
 | 18 | 2026-07 | **WTTJ via Algolia** instead of Playwright SPA scraping | WTTJ exposes Algolia App ID + public API key via `/api/env`. Querying Algolia directly returns structured JSON — no headless browser needed. Dramatically reduces implementation effort, maintenance, and breakage risk. |
-| 19 | 2026-07 | **WTTJ descriptions from JSON-LD** (always), not Algolia `profile` field | Algolia's `profile` field is missing for ~22% of hits and shorter when present. JSON-LD `JobPosting` on the job page provides consistent, rich descriptions across all offers — better for LLM scoring. Offers without a JSON-LD description are skipped. |
+| 19 | 2026-07 | **WTTJ descriptions from Algolia `profile` field**, not detail page JSON-LD | Algolia's `profile` field contains the same content as the detail page's JSON-LD description. Fetching detail pages triggers AWS WAF bot detection (202 challenge responses), making it unreliable. Using `profile` directly eliminates WAF issues, reduces scraping time from 5+ minutes to ~27 seconds, and removes the need for a second HTTP client. Offers without a `profile` field (~35%) are skipped. |
 
 ---
 
