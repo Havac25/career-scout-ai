@@ -2,7 +2,7 @@ import logging
 
 from career_scout_ai.config import AppConfig
 from career_scout_ai.scoring.engine import ScoringEngine
-from career_scout_ai.scraper.portals import justjoinit, nofluffjobs
+from career_scout_ai.scraper.portals import justjoinit, nofluffjobs, welcometothejungle
 from career_scout_ai.storage.database import get_session_factory, init_db
 
 
@@ -24,7 +24,7 @@ def main() -> None:
     session_factory = get_session_factory(engine)
 
     with session_factory() as session:
-        for portal in (justjoinit, nofluffjobs):
+        for portal in (justjoinit, nofluffjobs, welcometothejungle):
             run = portal.scrape(session)
             logger.info(
                 "[%s] Run #%d: found=%d new=%d status=%s",
