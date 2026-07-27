@@ -39,7 +39,7 @@ A Python application that scrapes IT job listings from PL+FR portals in the back
 ### Overview
 
 Career Scout AI is a **production-ready proof of concept** with full end-to-end functionality:
-- **Data pipeline:** Scrapes job listings from 3 major portals (PL/FR)
+- **Data pipeline:** Scrapes job listings from 4 major portals (PL/FR/Global remote)
 - **Deduplication:** Multi-layer content-based dedup prevents duplicates
 - **Intelligence:** Cloud LLM (Gemini 2.5 Flash) scores jobs against user profiles
 - **Extensibility:** Agent-based personas via markdown files; add new scoring criteria without code changes
@@ -70,6 +70,13 @@ All core flows have been tested and validated. The system currently processes ~2
 - Integrated with Algolia Search API directly (bypassing SPA scraping and AWS WAF challenges)
 - Fetches job descriptions natively from the `profile` field in the Algolia response
 - Skips job listings missing the necessary metadata
+- **Status:** Fully functional, production-ready
+
+**Himalayas Scraper** ✅
+- Integrated with the public Search API (`/jobs/api/search`), no authentication required
+- Multiple keyword queries cover ML/DS/AI roles, with in-memory dedup by `guid` across queries
+- HTML descriptions are stripped of tags before storage
+- Remote-only job board — `workplace_type` always set to "remote"
 - **Status:** Fully functional, production-ready
 
 **Deduplication at Ingestion** (Layer 1-2)
@@ -181,7 +188,6 @@ All core flows have been tested and validated. The system currently processes ~2
 
 | Portal | Region | Type | Effort | Notes |
 |--------|--------|------|--------|-------|
-| **Himalayas** | Global remote | Free JSON API (no auth) | Low | Best API — keyword/seniority/timezone search, 200-500 ML/AI listings |
 | **Remotive** | Global remote | Free JSON API (no auth) | Low | Category filter (`?category=data`), 50-200 remote ML/DS listings |
 | **AI-Jobs.net** | Global remote | HTML scraping | Low | 100% AI/ML niche, 500-2000 listings, very open robots.txt |
 | **Free-Work** | FR | HTML scraping | Low-Medium | Major French IT board (15k+ offers), strong for B2B/freelance ML roles |
