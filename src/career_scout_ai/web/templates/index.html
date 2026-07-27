@@ -288,6 +288,8 @@
     }
     .tag-jji { background: rgba(255,140,0,0.12); color: #ff8c00; border: 1px solid rgba(255,140,0,0.25); }
     .tag-nfj { background: rgba(180,0,255,0.12); color: #c840ff; border: 1px solid rgba(180,0,255,0.25); }
+    .tag-wttj { background: rgba(0,200,150,0.12); color: #00c896; border: 1px solid rgba(0,200,150,0.25); }
+    .tag-himalaya { background: rgba(255,100,150,0.12); color: #ff6496; border: 1px solid rgba(255,100,150,0.25); }
 
     /* Company column */
     .company { font-size: 0.85rem; color: #8faebd; }
@@ -693,8 +695,15 @@
     const pct  = Math.round(item.score * 100);
     const high = item.score >= 0.85;
 
-    const portalClass = item.portal === 'justjoinit' ? 'tag-jji' : 'tag-nfj';
-    const portalLabel = item.portal === 'justjoinit' ? 'JJI'     : 'NFJ';
+    const portalMapping = {
+      'justjoinit': { class: 'tag-jji', label: 'JJI' },
+      'nofluffjobs': { class: 'tag-nfj', label: 'NFJ' },
+      'welcometothejungle': { class: 'tag-wttj', label: 'WTTJ' },
+      'himalayas': { class: 'tag-himalaya', label: 'Himalaya' }
+    };
+    const portal = portalMapping[item.portal] || { class: 'tag-nfj', label: 'UNKNOWN' };
+    const portalClass = portal.class;
+    const portalLabel = portal.label;
 
     const detailCards = [
       item.location       ? ['LOCATION',     esc(item.location)]       : null,
