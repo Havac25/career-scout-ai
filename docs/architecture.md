@@ -61,6 +61,7 @@ career-scout-ai/
 │   │       ├── nofluffjobs.py
 │   │       ├── bulldogjob.py
 │   │       ├── welcometothejungle.py
+│   │       ├── himalayas.py
 │   │       ├── apec.py
 │   │       ├── lesjeudis.py
 │   │       ├── welovedevs.py
@@ -94,7 +95,8 @@ graph LR
         P1[JustJoinIT API]
         P2[NoFluffJobs API]
         P3[WTTJ Algolia API]
-        P4[...]
+        P4[Himalayas Search API]
+        P5[...]
     end
 
     subgraph "Scraper Engine (Phase 2)"
@@ -117,7 +119,7 @@ graph LR
         UI[User Interface]
     end
 
-    P1 & P2 & P3 & P4 --> SC
+    P1 & P2 & P3 & P4 & P5 --> SC
     SC --> DD
     DD --> DB
     DB <--> SE
@@ -369,6 +371,44 @@ sequenceDiagram
     end
 ```
 
+### Himalayas Scraper
+
+The Himalayas scraper queries the public Search API (`/jobs/api/search`) directly — no
+authentication required. Multiple keyword queries cover ML/DS/AI roles, with in-memory
+deduplication by `guid` across queries (since keyword searches overlap heavily). The
+`description` field is returned as raw HTML and is stripped of tags before storage.
+Himalayas is a remote-only job board, so `workplace_type` is always `"remote"`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SC as Himalayas Scraper
+    participant API as Himalayas Search API
+    participant DB as SQLite
+
+    loop For each Search Query (5 keywords)
+        loop For each page (up to max_pages)
+            SC->>API: GET /jobs/api/search (q, page)
+            API-->>SC: Jobs (title, company, salary, description HTML, guid)
+            loop For each Job
+                SC->>SC: In-memory Dedup (guid)
+                alt already seen
+                    SC->>SC: Skip Job
+                else new guid
+                    SC->>SC: Strip HTML tags from description
+                    SC->>DB: Check Duplicate (URL + Content Hash)
+                    alt is duplicate
+                        SC->>SC: Skip or mark duplicate
+                    else is new
+                        SC->>DB: Insert JobListing
+                    end
+                end
+            end
+            SC->>SC: Sleep 2.5s (REQUEST_DELAY) between pages
+        end
+    end
+```
+
 ---
 
 ## Scoring Workflow
@@ -423,6 +463,7 @@ sequenceDiagram
 | 17 | 2026-07 | **Web UI: Vanilla JS + FastAPI** instead of HTMX/TailwindCSS framework | Minimal dependencies, full control over styling and interactions. Cyberpunk theme provides distinctive brand identity and improved visual hierarchy for job matching data. No build step required. |
 | 18 | 2026-07 | **WTTJ via Algolia** instead of Playwright SPA scraping | WTTJ exposes Algolia App ID + public API key via `/api/env`. Querying Algolia directly returns structured JSON — no headless browser needed. Dramatically reduces implementation effort, maintenance, and breakage risk. |
 | 19 | 2026-07 | **WTTJ descriptions from Algolia `profile` field**, not detail page JSON-LD | Algolia's `profile` field contains the same content as the detail page's JSON-LD description. Fetching detail pages triggers AWS WAF bot detection (202 challenge responses), making it unreliable. Using `profile` directly eliminates WAF issues, reduces scraping time from 5+ minutes to ~27 seconds, and removes the need for a second HTTP client. Offers without a `profile` field (~35%) are skipped. |
+| 20 | 2026-07 | **Himalayas via public Search API**, not the Browse API | Confirmed via direct testing: free, unauthenticated JSON API; `robots.txt` allows `/jobs/api`. The Search endpoint (`/jobs/api/search`, keyword + page-based) targets ML/AI roles directly, avoiding the ~96k-job unfiltered Browse feed (`/jobs/api`, offset/limit, hard-capped at 20/page). |
 
 ---
 
