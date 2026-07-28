@@ -4,12 +4,6 @@ from pathlib import Path
 
 from career_scout_ai.config import AppConfig
 from career_scout_ai.scoring.engine import ScoringEngine
-from career_scout_ai.scraper.portals import (
-    himalayas,
-    justjoinit,
-    nofluffjobs,
-    welcometothejungle,
-)
 from career_scout_ai.storage.database import get_session_factory, init_db
 
 
@@ -35,17 +29,17 @@ def main() -> None:
     engine = init_db(config.database_path)
     session_factory = get_session_factory(engine)
 
-    with session_factory() as session:
-        for portal in (justjoinit, nofluffjobs, welcometothejungle, himalayas):
-            run = portal.scrape(session)
-            logger.info(
-                "[%s] Run #%d: found=%d new=%d status=%s",
-                run.portal,
-                run.id,
-                run.listings_found,
-                run.listings_new,
-                run.status,
-            )
+    # with session_factory() as session:
+    #     for portal in (justjoinit, nofluffjobs, welcometothejungle, himalayas):
+    #         run = portal.scrape(session)
+    #         logger.info(
+    #             "[%s] Run #%d: found=%d new=%d status=%s",
+    #             run.portal,
+    #             run.id,
+    #             run.listings_found,
+    #             run.listings_new,
+    #             run.status,
+    #         )
 
     try:
         scoring_engine = ScoringEngine(config)
