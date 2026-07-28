@@ -133,18 +133,57 @@ class OpenRouterClient:
         return ScoringResult(score=score, summary=summary)
 
     def is_available(self) -> bool:
-        """Check that the API key is set and accepted by OpenRouter."""
+        """Check that the API key is set and accepted by OpenRouter.
+
+        Retries on transient network errors; if all retries are exhausted
+        without a definitive answer, proceeds optimistically (returns True)
+        rather than blocking the whole run on an inconclusive health check.
+        Returns False immediately (no retry) on a confirmed 401/403.
+        """
         if not self.api_key:
-            msg = "OpenRouter API key not configured (set OPENROUTER_API_KEY)"
-            logger.error(msg)
+            logger.error("OpenRouter API key not configured (set OPENROUTER_API_KEY)")
             return False
-        try:
-            with httpx.Client(timeout=5) as client:
-                resp = client.get(
-                    f"{OPENROUTER_BASE_URL}/auth/key",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+
+        backoffs = [0, 3, 6]
+        last_exc: Exception | None = None
+
+        for attempt, backoff in enumerate(backoffs, start=1):
+            if backoff:
+                time.sleep(backoff)
+            try:
+                with httpx.Client(timeout=15) as client:
+                    resp = client.get(
+                        f"{OPENROUTER_BASE_URL}/auth/key",
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
+                if resp.status_code in (401, 403):
+                    logger.error(
+                        "OpenRouter auth check failed (%d): key rejected",
+                        resp.status_code,
+                    )
+                    return False
+                if resp.status_code == 200:
+                    return True
+                logger.warning(
+                    "OpenRouter availability check attempt %d/%d: unexpected status %d",
+                    attempt,
+                    len(backoffs),
+                    resp.status_code,
                 )
-                is_ok: bool = resp.status_code == 200
-                return is_ok
-        except (httpx.HTTPError, httpx.TimeoutException):
-            return False
+            except (httpx.HTTPError, httpx.TimeoutException) as exc:
+                last_exc = exc
+                logger.warning(
+                    "OpenRouter availability check attempt %d/%d failed: %s",
+                    attempt,
+                    len(backoffs),
+                    exc,
+                )
+
+        logger.warning(
+            "Could not confirm OpenRouter availability after %d attempts "
+            "(last error: %s) — proceeding with scoring anyway; "
+            "individual calls will retry independently",
+            len(backoffs),
+            last_exc,
+        )
+        return True

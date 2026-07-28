@@ -1,5 +1,6 @@
 import json
 
+import httpx
 import pytest
 
 from career_scout_ai.llm.openrouter_client import OPENROUTER_BASE_URL, OpenRouterClient
@@ -154,3 +155,32 @@ class TestIsAvailable:
         assert client_no_key.is_available() is False
         # Should not even attempt an HTTP call
         assert len(httpx_mock.get_requests()) == 0
+
+    def test_proceeds_after_inconclusive_network_errors(
+        self, client: OpenRouterClient, httpx_mock, monkeypatch
+    ):
+        """Transient network errors should not block scoring; proceed optimistically."""
+        monkeypatch.setattr(
+            "career_scout_ai.llm.openrouter_client.time.sleep", lambda _: None
+        )
+        httpx_mock.add_exception(httpx.ConnectError("connection refused"), url=AUTH_URL)
+        httpx_mock.add_exception(httpx.ConnectError("connection refused"), url=AUTH_URL)
+        httpx_mock.add_exception(httpx.ConnectError("connection refused"), url=AUTH_URL)
+
+        assert client.is_available() is True
+
+    def test_recovers_on_retry_after_transient_error(
+        self, client: OpenRouterClient, httpx_mock, monkeypatch
+    ):
+        """If a retry succeeds, is_available should return True right away."""
+        monkeypatch.setattr(
+            "career_scout_ai.llm.openrouter_client.time.sleep", lambda _: None
+        )
+        httpx_mock.add_exception(httpx.ReadTimeout("timed out"), url=AUTH_URL)
+        httpx_mock.add_response(
+            url=AUTH_URL,
+            method="GET",
+            json={"data": {"label": "test-key", "usage": 0}},
+        )
+
+        assert client.is_available() is True
