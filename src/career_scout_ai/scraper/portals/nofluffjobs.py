@@ -262,9 +262,9 @@ def scrape(session: Session, *, limit: int = SEARCH_LIMIT) -> ScrapingRun:
 
     except Exception:
         logger.exception("Scraping failed")
-        run.status = ScrapingStatus.FAILED
         session.rollback()
         session.add(run)
+        run.status = ScrapingStatus.FAILED
 
     run.finished_at = datetime.now(UTC)
     run.listings_found = listings_found
