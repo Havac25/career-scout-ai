@@ -29,7 +29,8 @@ SEARCH_QUERIES = [
 ]
 
 MAX_PAGES = 10  # per query — safety limit (API returns up to 20 results/page)
-REQUEST_DELAY = 2.5  # seconds between requests (per Himalayas rate-limit guidance)
+REQUEST_DELAY = 10  # seconds between requests (per Himalayas rate-limit guidance)
+RETRY_BACKOFFS = [5, 15, 30]  # seconds, one per retry attempt on transient errors
 
 _TAG_RE = re.compile(r"<[^>]+>")
 
@@ -99,10 +100,42 @@ def _parse_offer(job: dict) -> dict:
 
 def _fetch_page(client: httpx.Client, query: str, page: int) -> dict:
     params: dict[str, str | int] = {"q": query, "page": page}
-    response = client.get(SEARCH_URL, params=params)
-    response.raise_for_status()
-    data: dict = response.json()
-    return data
+
+    last_exc: Exception | None = None
+    for attempt, backoff in enumerate([0, *RETRY_BACKOFFS], start=1):
+        if backoff:
+            logger.warning(
+                "[himalayas] query=%r page=%d retrying in %ds (attempt %d/%d)",
+                query,
+                page,
+                backoff,
+                attempt,
+                len(RETRY_BACKOFFS) + 1,
+            )
+            time.sleep(backoff)
+
+        try:
+            response = client.get(SEARCH_URL, params=params)
+            if response.status_code == 429:
+                last_exc = httpx.HTTPStatusError(
+                    "429 rate limited", request=response.request, response=response
+                )
+                continue
+            response.raise_for_status()
+            data: dict = response.json()
+            return data
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_exc = exc
+            continue
+        except httpx.HTTPStatusError:
+            # Non-retryable client/server errors (4xx other than 429)
+            raise
+
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError(
+        f"[himalayas] query={query!r} page={page} failed with no captured exception"
+    )
 
 
 def _process_offer(session: Session, job: dict) -> bool:
@@ -174,7 +207,7 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
     try:
         with httpx.Client(
             headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
-            timeout=30.0,
+            timeout=120.0,
         ) as client:
             seen_guids: set[str] = set()
 
