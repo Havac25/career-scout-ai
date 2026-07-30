@@ -15,8 +15,10 @@
 |--------|------|--------|-----------|--------|
 | **JustJoinIT** | LOW | Public API | 30-60 req/h | ✅ Implemented |
 | **NoFluffJobs** | MEDIUM | Internal JSON API | ~12 req/h | ✅ Implemented |
+| **Welcome to the Jungle** | LOW-MEDIUM | Algolia Search API | ~60 req/h | ✅ Implemented |
+| **Himalayas** | LOW | Public API | ~24 req/h | ✅ Implemented |
+| **AI-Jobs.net** | LOW | Scraping (fully open robots.txt) | ~30-40 req/h | ✅ Implemented |
 | **Bulldogjob** | MEDIUM-LOW | Scraping | 10-15 req/h | 📋 Planned |
-| **Welcome to the Jungle** | MEDIUM | Scraping (JS/Playwright) | 8-12 req/h | 📋 Planned |
 | **APEC** | MEDIUM-LOW | Scraping | 10-15 req/h | 📋 Planned |
 | **LesJeudis** | MEDIUM | Scraping | 8-12 req/h | 📋 Planned |
 | **WeLoveDevs** | MEDIUM-LOW | Scraping | 8-12 req/h | 📋 Planned |
@@ -30,6 +32,9 @@ Has a public API (`api.justjoin.it`). Data is publicly accessible. We use the of
 
 ### NoFluffJobs — MEDIUM
 Internal JSON API (`/api/posting`, `/api/search/posting`) used by the frontend. `robots.txt` disallows `/api/`. Polish company, GDPR applies. Conservative rate-limit (5 min/request) as mitigation.
+
+### AI-Jobs.net — LOW
+`robots.txt` fully open (`Allow: /`, only `/account/` disallowed) — the most permissive stance of any portal checked. No API is exposed, so listing and detail pages are fetched as plain server-rendered HTML (no JS rendering, WAF, or bot-detection encountered). Rate-limited conservatively (~1.5-2s between requests) despite the low risk.
 
 ### LinkedIn — HIGH (SKIPPED)
 ToS explicitly prohibit scraping. LinkedIn actively pursues scrapers (hiQ Labs case). Aggressive bot detection.

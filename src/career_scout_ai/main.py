@@ -5,6 +5,7 @@ from pathlib import Path
 from career_scout_ai.config import AppConfig
 from career_scout_ai.scoring.engine import ScoringEngine
 from career_scout_ai.scraper.portals import (
+    aijobsnet,
     himalayas,
     justjoinit,
     nofluffjobs,
@@ -36,7 +37,13 @@ def main() -> None:
     session_factory = get_session_factory(engine)
 
     with session_factory() as session:
-        for portal in (justjoinit, nofluffjobs, welcometothejungle, himalayas):
+        for portal in (
+            justjoinit,
+            nofluffjobs,
+            welcometothejungle,
+            himalayas,
+            aijobsnet,
+        ):
             run = portal.scrape(session)
             logger.info(
                 "[%s] Run #%d: found=%d new=%d status=%s",
