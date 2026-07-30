@@ -27,6 +27,12 @@ stash() {
         exit 1
     fi
     
+    if [ -f "$BKP_PATH" ]; then
+        echo "Error: Backup already exists at $BKP_PATH"
+        echo "Use --pop to restore the existing backup first"
+        exit 1
+    fi
+    
     mv "$DB_PATH" "$BKP_PATH"
     echo "✓ Database backed up to $BKP_PATH"
 }
