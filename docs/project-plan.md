@@ -39,7 +39,7 @@ A Python application that scrapes IT job listings from PL+FR portals in the back
 ### Overview
 
 Career Scout AI is a **production-ready proof of concept** with full end-to-end functionality:
-- **Data pipeline:** Scrapes job listings from 4 major portals (PL/FR/Global remote)
+- **Data pipeline:** Scrapes job listings from 5 major portals (PL/FR/Global remote)
 - **Deduplication:** Multi-layer content-based dedup prevents duplicates
 - **Intelligence:** Cloud LLM (Gemini 2.5 Flash) scores jobs against user profiles
 - **Extensibility:** Agent-based personas via markdown files; add new scoring criteria without code changes
@@ -77,6 +77,14 @@ All core flows have been tested and validated. The system currently processes ~2
 - Multiple keyword queries cover ML/DS/AI roles, with in-memory dedup by `guid` across queries
 - HTML descriptions are stripped of tags before storage
 - Remote-only job board — `workplace_type` always set to "remote"
+- **Status:** Fully functional, production-ready
+
+**AI-Jobs.net Scraper** ✅
+- No hidden JSON API exists — integrated directly with the site's server-rendered HTMX listing endpoint (`POST /?page=N`) using a CSRF token/cookie obtained from the homepage
+- Default feed is not pre-filtered to AI/ML despite the site's tagline; scoped via the site's own `topics` taxonomy (Machine Learning, Data Science, AI, Data Engineering, MLOps, Computer Vision, NLP)
+- Fetches each new listing's detail page for a richer description (Tasks, Perks/Benefits, Skills/Tech-stack, Education sections)
+- Dedup-checked by URL before spending a detail-page request; `robots.txt` fully open (`Allow: /`) — lowest-risk scraped (non-API) portal implemented so far
+- **Configuration:** MAX_PAGES=30 (~1500 listings per run, covering ~12-14 days of fresh postings)
 - **Status:** Fully functional, production-ready
 
 **Deduplication at Ingestion** (Layer 1-2)
@@ -189,7 +197,6 @@ All core flows have been tested and validated. The system currently processes ~2
 | Portal | Region | Type | Effort | Notes |
 |--------|--------|------|--------|-------|
 | **Remotive** | Global remote | Free JSON API (no auth) | Low | Category filter (`?category=data`), 50-200 remote ML/DS listings |
-| **AI-Jobs.net** | Global remote | HTML scraping | Low | 100% AI/ML niche, 500-2000 listings, very open robots.txt |
 | **Free-Work** | FR | HTML scraping | Low-Medium | Major French IT board (15k+ offers), strong for B2B/freelance ML roles |
 
 #### Worth Considering (Future Expansion)

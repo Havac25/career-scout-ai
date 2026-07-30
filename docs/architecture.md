@@ -62,6 +62,7 @@ career-scout-ai/
 │   │       ├── bulldogjob.py
 │   │       ├── welcometothejungle.py
 │   │       ├── himalayas.py
+│   │       ├── aijobsnet.py
 │   │       ├── apec.py
 │   │       ├── lesjeudis.py
 │   │       ├── welovedevs.py
@@ -411,6 +412,61 @@ sequenceDiagram
 
 ---
 
+### AI-Jobs.net Scraper
+
+AI-Jobs.net exposes no hidden JSON API (unlike WTTJ). It's a server-rendered
+Django + HTMX site: the listing page is fetched via `POST /?page=N` (with a
+`csrftoken` cookie + matching `csrfmiddlewaretoken` form field obtained from
+an initial homepage GET), returning an HTML fragment parsed with
+BeautifulSoup. The site's default feed is *not* pre-filtered to AI/ML/Data
+roles despite its marketing tagline (unrelated listings like hotel/SEO jobs
+were observed), so a `topics` form field (OR'd topic IDs: Machine Learning,
+Data Science, Artificial Intelligence, Data Engineering, MLOps, Computer
+Vision, NLP — resolved via the site's own `/ac/topic/` autocomplete
+taxonomy) scopes results to the relevant niche. Pagination stops cleanly
+when the `Load more` button is absent from the fragment. For each new
+listing (dedup-checked by URL first to avoid wasted requests), the job's
+detail page is fetched to extract a richer `description_raw` from its
+`Tasks`, `Perks/Benefits`, `Skills/Tech-stack`, and `Education` sections.
+`robots.txt` is fully open (`Allow: /`), making this the lowest-risk scraped
+(non-API) portal implemented so far. **Current configuration: MAX_PAGES=30
+(~1500 listings per run, covering ~12-14 days of fresh postings).**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SC as AI-Jobs.net Scraper
+    participant SITE as aijobs.net
+
+    SC->>SITE: GET / (bootstrap)
+    SITE-->>SC: csrftoken cookie + csrfmiddlewaretoken
+
+    loop For each page (up to max_pages)
+        SC->>SITE: POST /?page=N (csrf, topics=[ML, DS, AI, ...])
+        SITE-->>SC: HTML fragment (title, salary, seniority, location, url)
+        loop For each listing
+            SC->>SC: Check Duplicate by URL only
+            alt already known URL
+                SC->>SC: Skip (no detail fetch)
+            else new URL
+                SC->>SITE: GET /job/{slug}/ (detail page)
+                SITE-->>SC: Tasks, Perks, Skills, Education, Company
+                SC->>SC: Check Duplicate (URL + Content Hash)
+                alt is duplicate
+                    SC->>SC: Skip or mark duplicate
+                else is new
+                    SC->>SC: Insert JobListing
+                end
+                SC->>SC: Sleep 2.0s (DETAIL_DELAY)
+            end
+        end
+        SC->>SC: Sleep 1.5s (REQUEST_DELAY) between pages
+        SC->>SC: Stop if "Load more" button absent
+    end
+```
+
+---
+
 ## Scoring Workflow
 
 The scoring phase evaluates freshly scraped offers against the user's career profile using persona-based agents.
@@ -464,6 +520,7 @@ sequenceDiagram
 | 18 | 2026-07 | **WTTJ via Algolia** instead of Playwright SPA scraping | WTTJ exposes Algolia App ID + public API key via `/api/env`. Querying Algolia directly returns structured JSON — no headless browser needed. Dramatically reduces implementation effort, maintenance, and breakage risk. |
 | 19 | 2026-07 | **WTTJ descriptions from Algolia `profile` field**, not detail page JSON-LD | Algolia's `profile` field contains the same content as the detail page's JSON-LD description. Fetching detail pages triggers AWS WAF bot detection (202 challenge responses), making it unreliable. Using `profile` directly eliminates WAF issues, reduces scraping time from 5+ minutes to ~27 seconds, and removes the need for a second HTTP client. Offers without a `profile` field (~35%) are skipped. |
 | 20 | 2026-07 | **Himalayas via public Search API**, not the Browse API | Confirmed via direct testing: free, unauthenticated JSON API; `robots.txt` allows `/jobs/api`. The Search endpoint (`/jobs/api/search`, keyword + page-based) targets ML/AI roles directly, avoiding the ~96k-job unfiltered Browse feed (`/jobs/api`, offset/limit, hard-capped at 20/page). |
+| 21 | 2026-07 | **AI-Jobs.net via topic-filtered HTMX POST + detail-page fetch**, not a hidden API | No JSON API exists (unlike WTTJ/Himalayas) — the site is plain server-rendered HTML (Django + HTMX), so a headless browser is unnecessary; a `POST /?page=N` with a CSRF token/cookie obtained from the homepage returns an HTML fragment. The default feed is not pre-filtered to AI/ML despite the site's tagline (unrelated jobs were observed), so a `topics` field (resolved via the site's own autocomplete taxonomy) scopes results to ML/DS/AI/Data Engineering/MLOps/CV/NLP. `robots.txt` is fully open (`Allow: /`), justifying an extra per-listing detail-page fetch for a richer description (Tasks/Perks/Skills/Education) versus the thinner list-view tags alone. |
 
 ---
 
