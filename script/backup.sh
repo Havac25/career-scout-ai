@@ -37,14 +37,9 @@ pop() {
         exit 1
     fi
     
-    if [ -f "$DB_PATH" ]; then
-        echo "Error: Database already exists at $DB_PATH"
-        echo "Remove it first or use --stash to create another backup"
-        exit 1
-    fi
-    
+    rm -f "$DB_PATH"
     mv "$BKP_PATH" "$DB_PATH"
-    echo "✓ Database restored from $BKP_PATH"
+    echo "✓ Database restored from backup"
 }
 
 if [ $# -eq 0 ]; then
