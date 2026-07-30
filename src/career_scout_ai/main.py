@@ -6,10 +6,10 @@ from career_scout_ai.config import AppConfig
 from career_scout_ai.scoring.engine import ScoringEngine
 from career_scout_ai.scraper.portals import (
     aijobsnet,
-    himalayas,
-    justjoinit,
-    nofluffjobs,
-    welcometothejungle,
+    # himalayas,
+    # justjoinit,
+    # nofluffjobs,
+    # welcometothejungle,
 )
 from career_scout_ai.storage.database import get_session_factory, init_db
 
@@ -38,10 +38,10 @@ def main() -> None:
 
     with session_factory() as session:
         for portal in (
-            justjoinit,
-            nofluffjobs,
-            welcometothejungle,
-            himalayas,
+            # justjoinit,
+            # nofluffjobs,
+            # welcometothejungle,
+            # himalayas,
             aijobsnet,
         ):
             run = portal.scrape(session)
