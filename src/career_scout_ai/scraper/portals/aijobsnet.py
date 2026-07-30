@@ -34,7 +34,7 @@ TOPIC_IDS = [
     39,  # Natural Language Processing (NLP)
 ]
 
-MAX_PAGES = 2  # safety cap, 50 listings/page -> ~1500 listings/run (~12-14 days fresh)
+MAX_PAGES = 30  # safety cap, 50 listings/page -> ~1500 listings/run (~12-14 days fresh)
 REQUEST_DELAY = 1.5  # seconds between listing pages
 DETAIL_DELAY = 2.0  # seconds between detail-page fetches
 
