@@ -1,6 +1,4 @@
-import json
 import logging
-import re
 import time
 from datetime import UTC, datetime
 
@@ -17,20 +15,16 @@ from career_scout_ai.storage.models import JobListing, ScrapingRun, ScrapingStat
 logger = logging.getLogger(__name__)
 
 PORTAL_NAME = "justjoinit"
-BASE_URL = "https://api.justjoin.it/v2/user-panel/offers"
-OFFER_URL_TEMPLATE = "https://justjoin.it/offers/{slug}"
-PER_PAGE = 50
-MAX_PAGES = 5  # Safety limit for MVP (~250 offers per run)
+BASE_URL = "https://justjoin.it/api/candidate-api"
+OFFERS_URL = f"{BASE_URL}/offers"
+DETAIL_URL_TEMPLATE = f"{OFFERS_URL}/{{slug}}"
+OFFER_URL_TEMPLATE = "https://justjoin.it/job-offer/{slug}"
+MAX_BATCHES = 25  # API returns 10 offers per batch (~250 offers per run)
 REQUEST_DELAY = 1.0  # seconds between API page requests
 DETAIL_DELAY = 0.5  # seconds between offer detail requests
 
-# JustJoinIT category IDs:
-# 5=Other/DS, 12=DevOps/MLOps, 19=Data, 23=Architecture, 25=C-level/AI
-CATEGORIES = [5, 12, 19, 23, 25]
-
-_JSONLD_RE = re.compile(
-    r'\{"@context":"https://schema\.org","@type":"JobPosting".*?\}(?=</script>)',
-)
+# Current equivalents of the previous Other, DevOps, Data, Architecture, and AI IDs.
+CATEGORIES = ["other", "devops", "data", "architecture", "ai"]
 
 
 def _format_salary(employment_types: list[dict]) -> str | None:
@@ -50,7 +44,7 @@ def _format_salary(employment_types: list[dict]) -> str | None:
 
 
 def _format_location(offer: dict) -> str | None:
-    locations = offer.get("multilocation") or []
+    locations = offer.get("locations") or []
     cities = list(
         dict.fromkeys(loc.get("city", "") for loc in locations if loc.get("city"))
     )
@@ -68,81 +62,89 @@ def _parse_datetime(value: str | None) -> datetime | None:
         return None
 
 
-def _fetch_description(client: httpx.Client, url: str) -> str | None:
+def _fetch_detail(client: httpx.Client, slug: str) -> dict | None:
     try:
-        response = client.get(url, follow_redirects=True)
+        response = client.get(DETAIL_URL_TEMPLATE.format(slug=slug))
         response.raise_for_status()
-        match = _JSONLD_RE.search(response.text)
-        if match:
-            data = json.loads(match.group(0))
-            description: str | None = data.get("description")
-            return description
+        data: dict = response.json()
+        return data
     except Exception:
-        logger.debug("Failed to fetch description for %s", url)
+        logger.debug("Failed to fetch detail for %s", slug)
     return None
 
 
-def _parse_offer(offer: dict) -> dict:
+def _parse_offer(offer: dict, detail: dict | None = None) -> dict:
+    source = detail or offer
     slug = offer.get("slug", "")
     title = offer.get("title", "")
     company = offer.get("companyName", "")
 
-    employment_types = offer.get("employmentTypes", [])
+    employment_types = source.get("employmentTypes", [])
+    original_employment_types = [
+        et for et in employment_types if et.get("currencySource") == "original"
+    ]
     contract_types = list(
         dict.fromkeys(et.get("type", "") for et in employment_types if et.get("type"))
     )
+    description = source.get("body")
 
     return {
         "portal": PORTAL_NAME,
         "url": OFFER_URL_TEMPLATE.format(slug=slug),
         "title": title,
         "company": company,
-        "location_raw": _format_location(offer),
-        "workplace_type": offer.get("workplaceType"),
+        "location_raw": _format_location(source),
+        "workplace_type": source.get("workplaceType"),
         "contract_types": ", ".join(contract_types) if contract_types else None,
-        "salary_raw": _format_salary(employment_types),
-        "description_raw": None,
-        "posted_at": _parse_datetime(offer.get("publishedAt")),
-        "content_hash": compute_content_hash(title, company, None),
+        "salary_raw": _format_salary(original_employment_types),
+        "description_raw": description,
+        "posted_at": _parse_datetime(source.get("publishedAt")),
+        "content_hash": compute_content_hash(title, company, description),
     }
 
 
-def _fetch_page(client: httpx.Client, page: int) -> dict:
-    params: list[tuple[str, int]] = [("page", page), ("perPage", PER_PAGE)]
-    params.extend(("categories[]", cat) for cat in CATEGORIES)
-    response = client.get(BASE_URL, params=params)
+def _fetch_page(client: httpx.Client, cursor: int) -> dict:
+    params: list[tuple[str, str | int | float | bool | None]] = [
+        ("from", cursor),
+        ("sortBy", "publishedAt"),
+        ("orderBy", "descending"),
+    ]
+    params.extend(("categories", category) for category in CATEGORIES)
+    response = client.get(OFFERS_URL, params=httpx.QueryParams(params))
     response.raise_for_status()
     data: dict = response.json()
     return data
 
 
 def _process_offer(
-    web_client: httpx.Client,
+    client: httpx.Client,
     session: Session,
     offer: dict,
 ) -> bool:
-    """Dedup, fetch description, and save a single offer. Returns True if new."""
-    parsed = _parse_offer(offer)
+    """Dedup, fetch detail, and save a single offer. Returns True if new."""
+    slug = offer.get("slug", "")
+    offer_url = OFFER_URL_TEMPLATE.format(slug=slug)
+    preliminary_hash = compute_content_hash(
+        offer.get("title", ""), offer.get("companyName", ""), None
+    )
 
     result = check_duplicate(
         session,
-        parsed["url"],
-        parsed["content_hash"],
+        offer_url,
+        preliminary_hash,
     )
+    if result == DedupResult.SKIP_URL:
+        return False
+
+    detail = _fetch_detail(client, slug)
+    time.sleep(DETAIL_DELAY)
+    parsed = _parse_offer(offer, detail)
+
+    result = check_duplicate(session, parsed["url"], parsed["content_hash"])
     if result == DedupResult.SKIP_URL:
         return False
     if result == DedupResult.SKIP_HASH:
         parsed["is_duplicate"] = True
-
-    description = _fetch_description(web_client, parsed["url"])
-    if description:
-        parsed["description_raw"] = description
-        parsed["content_hash"] = compute_content_hash(
-            parsed["title"],
-            parsed["company"],
-            description,
-        )
-    time.sleep(DETAIL_DELAY)
 
     session.add(JobListing(**parsed))
     return True
@@ -150,42 +152,43 @@ def _process_offer(
 
 def _scrape_pages(
     client: httpx.Client,
-    web_client: httpx.Client,
     session: Session,
-    max_pages: int,
+    max_batches: int,
 ) -> tuple[int, int]:
-    """Iterate API pages, process offers."""
+    """Iterate API cursor batches, process offers."""
     listings_found = 0
     listings_new = 0
+    cursor = 0
 
-    for page in range(1, max_pages + 1):
-        logger.info("Fetching page %d/%d", page, max_pages)
-        data = _fetch_page(client, page)
+    for batch in range(1, max_batches + 1):
+        logger.info("Fetching batch %d/%d (from=%d)", batch, max_batches, cursor)
+        data = _fetch_page(client, cursor)
 
         offers = data.get("data", [])
         if not offers:
-            logger.info("No more offers on page %d, stopping", page)
+            logger.info("No more offers at cursor %d, stopping", cursor)
             break
 
         for offer in offers:
             listings_found += 1
-            if _process_offer(web_client, session, offer):
+            if _process_offer(client, session, offer):
                 listings_new += 1
 
         session.commit()
 
-        meta = data.get("meta", {})
-        if meta.get("nextPage") is None:
-            logger.info("Reached last page")
+        next_page = data.get("meta", {}).get("next")
+        if not next_page or next_page.get("cursor") is None:
+            logger.info("Reached last batch")
             break
+        cursor = next_page["cursor"]
 
-        if page < max_pages:
+        if batch < max_batches:
             time.sleep(REQUEST_DELAY)
 
     return listings_found, listings_new
 
 
-def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
+def scrape(session: Session, *, max_batches: int = MAX_BATCHES) -> ScrapingRun:
     run = ScrapingRun(portal=PORTAL_NAME, status=ScrapingStatus.RUNNING)
     session.add(run)
     session.commit()
@@ -194,24 +197,14 @@ def scrape(session: Session, *, max_pages: int = MAX_PAGES) -> ScrapingRun:
     listings_new = 0
 
     try:
-        with (
-            httpx.Client(
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-                },
-                timeout=30.0,
-            ) as web_client,
-            httpx.Client(
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-                    "Version": "2",
-                },
-                timeout=30.0,
-            ) as client,
-        ):
-            listings_found, listings_new = _scrape_pages(
-                client, web_client, session, max_pages
-            )
+        with httpx.Client(
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                "Accept": "application/json",
+            },
+            timeout=30.0,
+        ) as client:
+            listings_found, listings_new = _scrape_pages(client, session, max_batches)
 
         run.status = ScrapingStatus.SUCCESS
 
