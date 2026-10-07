@@ -1,11 +1,30 @@
-import json
-
 from career_scout_ai.scraper.portals.justjoinit import (
-    _fetch_description,
+    DETAIL_URL_TEMPLATE,
+    OFFERS_URL,
+    _fetch_detail,
+    _fetch_page,
     _format_location,
     _format_salary,
     _parse_offer,
 )
+
+
+def test_fetch_page_uses_cursor_and_categories(httpx_mock):
+    httpx_mock.add_response(
+        url=(
+            f"{OFFERS_URL}?from=20&sortBy=publishedAt&orderBy=descending"
+            "&categories=other&categories=devops&categories=data"
+            "&categories=architecture&categories=ai"
+        ),
+        json={"data": [], "meta": {"next": None}},
+    )
+
+    import httpx
+
+    with httpx.Client() as client:
+        result = _fetch_page(client, 20)
+
+    assert result == {"data": [], "meta": {"next": None}}
 
 
 class TestFormatSalary:
@@ -64,19 +83,19 @@ class TestFormatSalary:
 
 class TestFormatLocation:
     def test_multilocation(self):
-        offer = {"multilocation": [{"city": "Warszawa"}, {"city": "Kraków"}]}
+        offer = {"locations": [{"city": "Warszawa"}, {"city": "Kraków"}]}
         assert _format_location(offer) == "Warszawa, Kraków"
 
     def test_deduplicates_cities(self):
-        offer = {"multilocation": [{"city": "Warszawa"}, {"city": "Warszawa"}]}
+        offer = {"locations": [{"city": "Warszawa"}, {"city": "Warszawa"}]}
         assert _format_location(offer) == "Warszawa"
 
     def test_fallback_to_city(self):
-        offer = {"multilocation": [], "city": "Gdańsk"}
+        offer = {"locations": [], "city": "Gdańsk"}
         assert _format_location(offer) == "Gdańsk"
 
     def test_no_location(self):
-        offer: dict = {"multilocation": []}
+        offer: dict = {"locations": []}
         assert _format_location(offer) is None
 
 
@@ -84,7 +103,7 @@ SAMPLE_OFFER = {
     "slug": "acme-data-scientist-warszawa-python",
     "title": "Data Scientist",
     "companyName": "Acme Corp",
-    "multilocation": [{"city": "Warszawa"}],
+    "locations": [{"city": "Warszawa"}],
     "employmentTypes": [
         {
             "from": 15000,
@@ -93,6 +112,7 @@ SAMPLE_OFFER = {
             "unit": "month",
             "type": "b2b",
             "gross": False,
+            "currencySource": "original",
         },
         {
             "from": 12000,
@@ -101,6 +121,7 @@ SAMPLE_OFFER = {
             "unit": "month",
             "type": "permanent",
             "gross": True,
+            "currencySource": "original",
         },
     ],
     "workplaceType": "hybrid",
@@ -114,7 +135,7 @@ class TestParseOffer:
         assert parsed["portal"] == "justjoinit"
         assert (
             parsed["url"]
-            == "https://justjoin.it/offers/acme-data-scientist-warszawa-python"
+            == "https://justjoin.it/job-offer/acme-data-scientist-warszawa-python"
         )
         assert parsed["title"] == "Data Scientist"
         assert parsed["company"] == "Acme Corp"
@@ -136,43 +157,34 @@ class TestParseOffer:
         assert parsed["contract_types"] is None
 
 
-class TestFetchDescription:
-    def test_extracts_from_jsonld(self, httpx_mock):
-        jsonld = json.dumps(
-            {
-                "@context": "https://schema.org",
-                "@type": "JobPosting",
-                "description": "We are looking for a Data Scientist.",
-            },
-            separators=(",", ":"),
-        )
-        html = f"<html><script>{jsonld}</script></html>"
-        httpx_mock.add_response(url="https://justjoin.it/offers/test-slug", text=html)
-
-        import httpx
-
-        with httpx.Client() as client:
-            result = _fetch_description(client, "https://justjoin.it/offers/test-slug")
-        assert result == "We are looking for a Data Scientist."
-
-    def test_returns_none_when_no_jsonld(self, httpx_mock):
+class TestFetchDetail:
+    def test_returns_json_detail(self, httpx_mock):
         httpx_mock.add_response(
-            url="https://justjoin.it/offers/test-slug", text="<html></html>"
+            url=DETAIL_URL_TEMPLATE.format(slug="test-slug"),
+            json={"body": "We are looking for a Data Scientist."},
         )
 
         import httpx
 
         with httpx.Client() as client:
-            result = _fetch_description(client, "https://justjoin.it/offers/test-slug")
-        assert result is None
+            result = _fetch_detail(client, "test-slug")
+        assert result == {"body": "We are looking for a Data Scientist."}
 
     def test_returns_none_on_http_error(self, httpx_mock):
         httpx_mock.add_response(
-            url="https://justjoin.it/offers/test-slug", status_code=500
+            url=DETAIL_URL_TEMPLATE.format(slug="test-slug"), status_code=500
         )
 
         import httpx
 
         with httpx.Client() as client:
-            result = _fetch_description(client, "https://justjoin.it/offers/test-slug")
+            result = _fetch_detail(client, "test-slug")
         assert result is None
+
+
+def test_parse_offer_uses_detail_body():
+    parsed = _parse_offer(
+        SAMPLE_OFFER,
+        {**SAMPLE_OFFER, "body": "Full offer description"},
+    )
+    assert parsed["description_raw"] == "Full offer description"
